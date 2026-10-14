@@ -32,7 +32,7 @@ body {
 	--dc-margin-reserve: 0px;
 }
 
-/* ── Highlight color palette (Notion's 9 colors) ──────────────────────────
+/* ── Highlight color palettes (9 colors; Notion by default, or Apple) ─────
    Pick one in settings; --dc-highlight-* above just points at whichever id is
    chosen, so switching the setting swaps these without touching the handful
    of rules that actually paint the highlight. */
@@ -80,6 +80,52 @@ body.theme-dark {
 	--dc-hl-pink-border: #C25F94;
 	--dc-hl-red-pale: #4D302B;
 	--dc-hl-red-border: #CF5D57;
+}
+/* "Apple" color scheme (Settings → Color scheme; applyColorScheme() in
+   highlight-colors.ts sets the body class). Same roles as Notion's: *-pale is
+   the "BG only" fill — translucent, so the page shows through — and *-border
+   the "Text only" color. `body.dc-scheme-apple` follows body.theme-dark in
+   source order, so it beats the Notion dark palette at equal specificity; its
+   own dark block adds .theme-dark and wins on specificity. */
+body.dc-scheme-apple {
+	--dc-hl-gray-pale: #9898A026;
+	--dc-hl-gray-border: #9898A0;
+	--dc-hl-brown-pale: #B38C6526;
+	--dc-hl-brown-border: #B38C65;
+	--dc-hl-orange-pale: #F0934326;
+	--dc-hl-orange-border: #F09343;
+	--dc-hl-yellow-pale: #F4C24233;
+	--dc-hl-yellow-border: #F4C242;
+	--dc-hl-green-pale: #53C67D26;
+	--dc-hl-green-border: #53C67D;
+	--dc-hl-blue-pale: #3B86F726;
+	--dc-hl-blue-border: #3B86F7;
+	--dc-hl-purple-pale: #BB3ED926;
+	--dc-hl-purple-border: #BB3ED9;
+	--dc-hl-pink-pale: #EB445A26;
+	--dc-hl-pink-border: #EB445A;
+	--dc-hl-red-pale: #ED5D4A26;
+	--dc-hl-red-border: #ED5D4A;
+}
+body.dc-scheme-apple.theme-dark {
+	--dc-hl-gray-pale: #A0A0A726;
+	--dc-hl-gray-border: #A0A0A7;
+	--dc-hl-brown-pale: #B8946F26;
+	--dc-hl-brown-border: #B8946F;
+	--dc-hl-orange-pale: #F0974826;
+	--dc-hl-orange-border: #F09748;
+	--dc-hl-yellow-pale: #F6CE5526;
+	--dc-hl-yellow-border: #F6CE55;
+	--dc-hl-green-pale: #5EC98626;
+	--dc-hl-green-border: #5EC986;
+	--dc-hl-blue-pale: #3F8FF726;
+	--dc-hl-blue-border: #3F8FF7;
+	--dc-hl-purple-pale: #CA43EA26;
+	--dc-hl-purple-border: #CA43EA;
+	--dc-hl-pink-pale: #EB4B6326;
+	--dc-hl-pink-border: #EB4B63;
+	--dc-hl-red-pale: #EE695826;
+	--dc-hl-red-border: #EE6958;
 }
 /* What each .dc-color-<id> / swatch actually paints: the pale fill mixed with
    this color's own tone by --dc-highlight-intensity (settings slider, default

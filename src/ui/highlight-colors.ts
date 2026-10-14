@@ -50,36 +50,80 @@ export const applyHighlightIntensity = (percent: number): void => {
 	document.body.style.setProperty("--dc-highlight-intensity", `${percent}%`);
 };
 
-/** Notion's palette per theme: `bg` is the highlight fill, `fg` the deeper tone
- *  (underline, hover, colored comment text). Mirrors the --dc-hl-<id>-pale /
- *  -border values in styles.css — keep the two in sync. Used to show each
- *  color's default in the settings color pickers. */
-const PALETTE: Record<string, Record<"light" | "dark", { bg: string; fg: string }>> = {
-	gray: { light: { bg: "#F1F1EF", fg: "#787774" }, dark: { bg: "#2F2F2F", fg: "#9B9B9B" } },
-	brown: { light: { bg: "#F3EEEE", fg: "#976D57" }, dark: { bg: "#46332A", fg: "#B28773" } },
-	orange: { light: { bg: "#F8ECDF", fg: "#CC782F" }, dark: { bg: "#573C27", fg: "#BD8052" } },
-	yellow: { light: { bg: "#FAF3DE", fg: "#C29343" }, dark: { bg: "#53442C", fg: "#C29A56" } },
-	green: { light: { bg: "#EEF3EC", fg: "#548164" }, dark: { bg: "#2A3C31", fg: "#659C75" } },
-	blue: { light: { bg: "#E9F3F7", fg: "#487CA5" }, dark: { bg: "#1E394C", fg: "#6786C4" } },
-	purple: { light: { bg: "#F6F3F9", fg: "#8A67AB" }, dark: { bg: "#3A2E47", fg: "#956ACD" } },
-	pink: { light: { bg: "#F8F1F5", fg: "#B35388" }, dark: { bg: "#492E3B", fg: "#C25F94" } },
-	red: { light: { bg: "#FAECEC", fg: "#C4554D" }, dark: { bg: "#4D302B", fg: "#CF5D57" } },
+export type ColorScheme = "notion" | "apple";
+
+export const COLOR_SCHEMES: Array<{ id: ColorScheme; label: string }> = [
+	{ id: "notion", label: "Notion" },
+	{ id: "apple", label: "Apple" },
+];
+
+export const DEFAULT_COLOR_SCHEME: ColorScheme = "notion";
+
+/** Switches the 9 colors between palettes with a body class (see styles.css's
+ *  `body.dc-scheme-apple` blocks); Notion needs no class. */
+export const applyColorScheme = (scheme: string): void => {
+	document.body.classList.toggle("dc-scheme-apple", scheme === "apple");
 };
 
-/** The highlight color a palette id gets by default in one theme at a given
- *  intensity — the same `color-mix(in srgb, bg, fg <intensity>%)` styles.css
- *  computes, as a hex for a color picker. */
-export const defaultHighlightHex = (id: string, theme: "light" | "dark", intensity: number): string => {
-	const entry = PALETTE[id]?.[theme];
+type Swatch = { bg: string; fg: string };
+type Palette = Record<string, Record<"light" | "dark", Swatch>>;
+
+/** Each scheme's palette per theme: `bg` is the highlight fill, `fg` the text
+ *  tone (underline, hover, colored comment text). Mirrors the --dc-hl-<id>-pale
+ *  / -border values in styles.css — keep the two in sync. Used to show each
+ *  color's default in the settings color pickers. Apple's fills are
+ *  translucent (#RRGGBBAA). */
+const PALETTES: Record<ColorScheme, Palette> = {
+	notion: {
+		gray: { light: { bg: "#F1F1EF", fg: "#787774" }, dark: { bg: "#2F2F2F", fg: "#9B9B9B" } },
+		brown: { light: { bg: "#F3EEEE", fg: "#976D57" }, dark: { bg: "#46332A", fg: "#B28773" } },
+		orange: { light: { bg: "#F8ECDF", fg: "#CC782F" }, dark: { bg: "#573C27", fg: "#BD8052" } },
+		yellow: { light: { bg: "#FAF3DE", fg: "#C29343" }, dark: { bg: "#53442C", fg: "#C29A56" } },
+		green: { light: { bg: "#EEF3EC", fg: "#548164" }, dark: { bg: "#2A3C31", fg: "#659C75" } },
+		blue: { light: { bg: "#E9F3F7", fg: "#487CA5" }, dark: { bg: "#1E394C", fg: "#6786C4" } },
+		purple: { light: { bg: "#F6F3F9", fg: "#8A67AB" }, dark: { bg: "#3A2E47", fg: "#956ACD" } },
+		pink: { light: { bg: "#F8F1F5", fg: "#B35388" }, dark: { bg: "#492E3B", fg: "#C25F94" } },
+		red: { light: { bg: "#FAECEC", fg: "#C4554D" }, dark: { bg: "#4D302B", fg: "#CF5D57" } },
+	},
+	apple: {
+		gray: { light: { bg: "#9898A026", fg: "#9898A0" }, dark: { bg: "#A0A0A726", fg: "#A0A0A7" } },
+		brown: { light: { bg: "#B38C6526", fg: "#B38C65" }, dark: { bg: "#B8946F26", fg: "#B8946F" } },
+		orange: { light: { bg: "#F0934326", fg: "#F09343" }, dark: { bg: "#F0974826", fg: "#F09748" } },
+		yellow: { light: { bg: "#F4C24233", fg: "#F4C242" }, dark: { bg: "#F6CE5526", fg: "#F6CE55" } },
+		green: { light: { bg: "#53C67D26", fg: "#53C67D" }, dark: { bg: "#5EC98626", fg: "#5EC986" } },
+		blue: { light: { bg: "#3B86F726", fg: "#3B86F7" }, dark: { bg: "#3F8FF726", fg: "#3F8FF7" } },
+		purple: { light: { bg: "#BB3ED926", fg: "#BB3ED9" }, dark: { bg: "#CA43EA26", fg: "#CA43EA" } },
+		pink: { light: { bg: "#EB445A26", fg: "#EB445A" }, dark: { bg: "#EB4B6326", fg: "#EB4B63" } },
+		red: { light: { bg: "#ED5D4A26", fg: "#ED5D4A" }, dark: { bg: "#EE695826", fg: "#EE6958" } },
+	},
+};
+
+/** Page background a translucent fill is shown over, for the picker preview. */
+const PAGE_BG = { light: "#FFFFFF", dark: "#1E1E1E" };
+
+const channels = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+/** A palette id's default highlight in one scheme and theme at a given
+ *  intensity, as an opaque hex for a color picker: a translucent fill is first
+ *  composited over the page background, then mixed toward the text tone like
+ *  styles.css's `color-mix(in srgb, fill, tone <intensity>%)`. */
+export const defaultHighlightHex = (
+	id: string,
+	theme: "light" | "dark",
+	intensity: number,
+	scheme: string = DEFAULT_COLOR_SCHEME,
+): string => {
+	const entry = (PALETTES[scheme as ColorScheme] ?? PALETTES.notion)[id]?.[theme];
 	if (!entry) return "#000000";
+	const alpha = entry.bg.length === 9 ? parseInt(entry.bg.slice(7, 9), 16) / 255 : 1;
+	const page = channels(PAGE_BG[theme]);
+	const fill = channels(entry.bg).map((c, i) => c * alpha + (page[i] ?? 0) * (1 - alpha));
+	const tone = channels(entry.fg);
 	const t = Math.min(Math.max(intensity, 0), 100) / 100;
-	const channels = (hex: string): number[] => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
-	const from = channels(entry.bg);
-	const to = channels(entry.fg);
 	return (
 		"#" +
-		from
-			.map((c, i) => Math.round(c + ((to[i] ?? c) - c) * t))
+		fill
+			.map((c, i) => Math.round(c + ((tone[i] ?? c) - c) * t))
 			.map((c) => c.toString(16).padStart(2, "0"))
 			.join("")
 	);

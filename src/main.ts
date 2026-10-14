@@ -30,6 +30,7 @@ import { DEFAULT_SETTINGS, DocCommentsSettings, DocCommentsSettingTab } from "./
 import { tableHighlightPlugin } from "./editor/table-highlights";
 import {
 	applyAnnotationStyle,
+	applyColorScheme,
 	applyCustomHighlightColors,
 	applyHighlightColor,
 	applyHighlightIntensity,
@@ -53,6 +54,7 @@ export default class DocCommentsPlugin extends Plugin {
 		applyHighlightIntensity(this.settings.highlightIntensity);
 		applyCustomHighlightColors(this.settings.highlightColorsLight, this.settings.highlightColorsDark);
 		applyAnnotationStyle(this.settings.annotationStyle);
+		applyColorScheme(this.settings.colorScheme);
 		this.applyAuthorVisibility();
 		// Vault images resolve only once the vault is indexed.
 		this.app.workspace.onLayoutReady(() => this.applyProfile());
@@ -380,6 +382,7 @@ export default class DocCommentsPlugin extends Plugin {
 		applyHighlightColor(this.settings.highlightColor);
 		applyHighlightIntensity(this.settings.highlightIntensity);
 		applyCustomHighlightColors(this.settings.highlightColorsLight, this.settings.highlightColorsDark);
+		applyColorScheme(this.settings.colorScheme);
 		applyAnnotationStyle(this.settings.annotationStyle);
 	}
 
@@ -464,7 +467,7 @@ export default class DocCommentsPlugin extends Plugin {
 	onunload(): void {
 		this.readingManager?.destroy();
 		this.textToolbar?.destroy();
-		activeDocument.body.removeClass("dc-hide-author");
+		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple");
 		clearProfile();
 	}
 
