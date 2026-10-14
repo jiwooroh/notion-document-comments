@@ -11,8 +11,10 @@ import type DocCommentsPlugin from "./main";
 import { cssUrl, ImageFileModal, resolvePhotoUrl } from "./ui/profile";
 import {
 	ANNOTATION_STYLES,
+	COLOR_SCHEMES,
 	CUSTOMIZABLE_HIGHLIGHT_COLORS,
 	DEFAULT_ANNOTATION_STYLE,
+	DEFAULT_COLOR_SCHEME,
 	DEFAULT_HIGHLIGHT_COLOR,
 	DEFAULT_HIGHLIGHT_INTENSITY,
 	defaultHighlightHex,
@@ -36,6 +38,8 @@ export type DocCommentsSettings = {
 	showAuthor: boolean;
 	/** Include comments as numbered footnotes when exporting a note to PDF. */
 	printComments: boolean;
+	/** Which palette the 9 colors use: "notion" or "apple". */
+	colorScheme: string;
 	/** Palette id (see highlight-colors.ts) for the in-text comment highlight. */
 	highlightColor: string;
 	/** % of each color's own tone mixed into its pale base — shared by all 9. */
@@ -58,6 +62,7 @@ export const DEFAULT_SETTINGS: DocCommentsSettings = {
 	showMyProfile: true,
 	showAuthor: true,
 	printComments: true,
+	colorScheme: DEFAULT_COLOR_SCHEME,
 	highlightColor: DEFAULT_HIGHLIGHT_COLOR,
 	highlightIntensity: DEFAULT_HIGHLIGHT_INTENSITY,
 	highlightColorsLight: {},
@@ -81,6 +86,7 @@ type SliderControl = { type: "slider"; min: number; max: number; step: number };
 const HIGHLIGHT_COLOR_OPTIONS: Record<string, string> = Object.fromEntries(
 	HIGHLIGHT_COLORS.map((c) => [c.id, c.label]),
 );
+const COLOR_SCHEME_OPTIONS: Record<string, string> = Object.fromEntries(COLOR_SCHEMES.map((s) => [s.id, s.label]));
 const ANNOTATION_STYLE_OPTIONS: Record<string, string> = Object.fromEntries(
 	ANNOTATION_STYLES.map((s) => [s.id, s.label]),
 );
@@ -151,6 +157,13 @@ const SETTING_META: ReadonlyArray<{
 		desc: 'How commented text is marked: "Highlight" (fill only), "Underline" (no fill), or "Highlight + underline". Any single comment can override this from its "..." menu → Change style.',
 		aliases: ["annotation", "underline", "highlight style", "comment marker"],
 		control: { type: "dropdown", options: ANNOTATION_STYLE_OPTIONS },
+	},
+	{
+		key: "colorScheme",
+		name: "Color scheme",
+		desc: "Palette for the 9 highlight and text colors: Notion (soft, solid fills) or Apple (bright colors with translucent fills).",
+		aliases: ["palette", "notion colors", "apple colors", "theme colors"],
+		control: { type: "dropdown", options: COLOR_SCHEME_OPTIONS },
 	},
 	{
 		key: "highlightColor",
@@ -377,7 +390,8 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		const current = this.plugin.settings[key][c.id];
 		// An uncustomized color shows its own theme's default, so the light and
 		// dark rows each preview the palette they actually use.
-		const fallback = (): string => defaultHighlightHex(c.id, theme, this.plugin.settings.highlightIntensity);
+		const fallback = (): string =>
+			defaultHighlightHex(c.id, theme, this.plugin.settings.highlightIntensity, this.plugin.settings.colorScheme);
 		setting.setName(c.label);
 		let picker: ColorComponent | null = null;
 		setting.addColorPicker((p) => {
@@ -420,10 +434,16 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		else if (key === "showAuthor") this.plugin.settings.showAuthor = Boolean(value);
 		else if (key === "showMyProfile") this.plugin.settings.showMyProfile = Boolean(value);
 		else if (key === "highlightColor") this.plugin.settings.highlightColor = String(value);
+		else if (key === "colorScheme") this.plugin.settings.colorScheme = String(value);
 		else if (key === "highlightIntensity") this.plugin.settings.highlightIntensity = Number(value);
 		else if (key === "annotationStyle") this.plugin.settings.annotationStyle = String(value);
 		await this.plugin.saveSettings();
-		const colorKeys: StringSettingKey[] = ["highlightColor", "highlightIntensity", "annotationStyle"];
+		const colorKeys: StringSettingKey[] = [
+			"colorScheme",
+			"highlightColor",
+			"highlightIntensity",
+			"annotationStyle",
+		];
 		if (colorKeys.includes(key)) this.plugin.refreshHighlightColor();
 		if (key !== "author" && !colorKeys.includes(key)) this.plugin.refreshEditors();
 		if (key === "showComments") this.plugin.updateRibbon();

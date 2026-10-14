@@ -32,7 +32,8 @@ Select text while you write or edit a comment, and a small toolbar appears above
 
 Choose how commented text is marked in your notes.
 
-- **Highlight color**: your theme's highlight color, or one of Notion's 9 colors (yellow, green, blue, purple, pink, red, orange, brown, gray), with separate light and dark palettes.
+- **Color scheme**: **Notion** (soft, solid fills) or **Apple** (bright Apple-style colors with translucent fills). Both have separate light and dark palettes and also set the text colors in the comment toolbar.
+- **Highlight color**: your theme's highlight color, or one of the scheme's 9 colors (yellow, green, blue, purple, pink, red, orange, brown, gray).
 - **Highlight intensity**: 0% (the default) is Notion's exact color. Raise it to make every highlight bolder.
 - **Custom colors**: pick your own hex value for each color, separately for light and dark themes. Each picker shows the default until you change it; ↺ resets it.
 
@@ -262,9 +263,10 @@ The plugin uses `me` when the Author setting is empty. Your profile photo and **
 | Allow empty comments | Let a comment be saved without text (highlight only) | Off |
 | Show comments in PDF export | Print comments in a margin column when exporting to PDF | On |
 | Annotation style | Highlight, Underline, or Highlight + underline | Highlight |
-| Highlight color | Theme default or one of Notion's 9 colors | Theme default |
-| Highlight intensity | How bold the highlight color is (0% = Notion's exact color) | 0% |
-| Custom highlight colors | Your own hex for each color, per light/dark theme | Notion's palette |
+| Color scheme | Palette for the 9 colors: Notion or Apple | Notion |
+| Highlight color | Theme default or one of the scheme's 9 colors | Theme default |
+| Highlight intensity | How bold the highlight color is (0% = the scheme's exact color) | 0% |
+| Custom highlight colors | Your own hex for each color, per light/dark theme | The scheme's palette |
 
 ## Desktop, tablet, and phone behavior
 

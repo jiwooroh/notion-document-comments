@@ -5,6 +5,38 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.10
+
+### New: Color scheme setting
+
+Choose the palette for the 9 highlight and text colors in **Settings → Notion-style Comments → Color scheme**:
+
+- **Notion** (default): the existing soft palette with solid fills. Nothing changes unless you switch.
+- **Apple** (new): bright Apple-style colors with translucent highlight fills, so the page shows through.
+
+The scheme applies everywhere the 9 colors are used: comment highlights, underlines and hover color, the text and highlight colors in the comment formatting toolbar, and PDF export. Each scheme has its own light and dark palette.
+
+### Apple palette
+
+| Color | Text: light | Text: dark | Highlight: light | Highlight: dark |
+|---|---|---|---|---|
+| Red | `#ED5D4A` | `#EE6958` | `#ED5D4A26` | `#EE695826` |
+| Orange | `#F09343` | `#F09748` | `#F0934326` | `#F0974826` |
+| Yellow | `#F4C242` | `#F6CE55` | `#F4C24233` | `#F6CE5526` |
+| Green | `#53C67D` | `#5EC986` | `#53C67D26` | `#5EC98626` |
+| Blue | `#3B86F7` | `#3F8FF7` | `#3B86F726` | `#3F8FF726` |
+| Purple | `#BB3ED9` | `#CA43EA` | `#BB3ED926` | `#CA43EA26` |
+| Pink | `#EB445A` | `#EB4B63` | `#EB445A26` | `#EB4B6326` |
+| Gray | `#9898A0` | `#A0A0A7` | `#9898A026` | `#A0A0A726` |
+| Brown | `#B38C65` | `#B8946F` | `#B38C6526` | `#B8946F26` |
+
+Text + highlight uses the text color on its matching highlight (e.g. light-mode red is `#ED5D4A` on `#ED5D4A26`). **Theme default** still uses your theme's own highlight with no extra color.
+
+### Notes
+
+- **Highlight intensity** works with both schemes: 0% shows the scheme's exact color, higher values make highlights bolder.
+- **Custom highlight colors** pickers show the selected scheme's defaults (Apple's translucent fills are previewed as they look on a light or dark page). A custom color applies under both schemes.
+
 ## 0.2.9
 
 - Removed the **Show floating button** setting and its selection button. Add comments with the **Add comment** command, or the **Comment** button in [Notion Selection Toolbar](https://github.com/jiwooroh/notion-selection-toolbar).
