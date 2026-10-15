@@ -2,7 +2,7 @@ import { App, Component, MarkdownPostProcessorContext, MarkdownRenderer } from "
 import { ParsedComment, TextRange } from "../format/types";
 import { anchorRange, parseComments } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
-import { wrapFirstMatch } from "./highlight";
+import { wrapAnchor, wrapFirstMatch } from "./highlight";
 import { layoutMarginNotes } from "./print-layout";
 
 export type PrintNotesDeps = {
@@ -61,7 +61,10 @@ export const printNotesPostProcessor = async (
 		const anchored = text.slice(range.from, range.to);
 		// A code comment's lines each sit in their own text node; prose is one match.
 		const needles = isCodeComment(c) ? anchored.split("\n").filter((l) => l.trim()) : [anchored];
-		for (const needle of needles) wrapFirstMatch(el, needle, c.id, resolved, null, c.color, c.style);
+		for (const needle of needles) {
+			if (isCodeComment(c)) wrapFirstMatch(el, needle, c.id, resolved, null, c.color, c.style);
+			else wrapAnchor(el, needle, c.id, resolved, null, c.color, c.style);
+		}
 		if (c.thread.length === 0) continue;
 
 		n++;

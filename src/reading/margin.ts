@@ -1,7 +1,7 @@
 import { App, MarkdownView, Notice } from "obsidian";
 import { Result } from "better-result";
 import { ParsedComment, TextRange } from "../format/types";
-import { hasMarginAnchor, parseComments } from "../format/parse";
+import { hasCommentCard, hasMarginAnchor, parseComments } from "../format/parse";
 import { Card, CardCallbacks } from "../ui/card";
 import { cardSignature } from "../ui/card-format";
 import {
@@ -63,8 +63,10 @@ class ReadingMargin {
 		private view: MarkdownView,
 		private deps: ReadingDeps,
 	) {
+		this.scroller = previewScroller(readingView);
+		// Beside the scroller, not inside it: Obsidian's Reading view renderer owns
+		// the scroller's children, and a foreign element there blanked the page.
 		this.container = readingView.createDiv("doc-comment-margin");
-		this.scroller = (readingView.querySelector(".markdown-preview-view") as HTMLElement) ?? readingView;
 		this.cb = {
 			getAuthor: () => deps.getAuthor(),
 			onHover: (id, active) => this.setActive(active ? id : null),
@@ -91,9 +93,8 @@ class ReadingMargin {
 			openInSidebar: (id) => deps.openInSidebar?.(id),
 		};
 
-		this.scroller.addEventListener("scroll", this.scrollHandler, { passive: true });
 		this.resizeObserver = new ResizeObserver(() => this.position());
-		this.resizeObserver.observe(this.scroller);
+		this.bindScroller();
 		this.readingView.addEventListener("mouseover", this.onMouseOver);
 		this.readingView.addEventListener("mouseout", this.onMouseOut);
 		this.readingView.addEventListener("mousedown", this.onMouseDown);
@@ -110,7 +111,12 @@ class ReadingMargin {
 		} catch {
 			return; // file vanished or unreadable — keep the last render
 		}
-		const all = parseComments(data).filter(hasMarginAnchor);
+		// A comment that lost one of its markers still gets a card when Reading
+		// view found its saved quote (see highlightPostProcessor); position() only
+		// shows cards whose highlight is on the page.
+		const all = parseComments(data).filter(
+			(c) => hasMarginAnchor(c) || (hasCommentCard(c) && !!c.quote && !!(c.open || c.close)),
+		);
 		// Sidebar open → inline cards step aside (the panel lists them instead).
 		this.comments = this.deps.showComments() && !this.deps.sidebarOpen() ? all : [];
 		this.reconcileCards();
@@ -160,6 +166,7 @@ class ReadingMargin {
 
 	private position(): void {
 		if (this.destroyed) return;
+		this.syncScroller();
 		// State classes live on the reading-view container (Obsidian-owned, safe to
 		// write directly), so the stylesheet caps the text column with plain
 		// descendant selectors instead of :has().
@@ -185,6 +192,7 @@ class ReadingMargin {
 		// Too narrow for the text column and the margin to coexist — stop reserving
 		// space for the column and let cards hide until their anchor is hovered.
 		this.readingView.toggleClass("dc-narrow", isNarrowForMargin(this.scroller));
+		// Cards sit in a column beside the scroller and are re-positioned on scroll.
 		const topRef = this.readingView.getBoundingClientRect().top;
 		// Gather geometry (reads) first, then write every top in one pass — cards are
 		// absolutely positioned, so a top write can't change any height.
@@ -427,6 +435,30 @@ class ReadingMargin {
 		if (id) this.setActive(id);
 	};
 
+	/** Listen to the current scroller's scroll and size. */
+	private bindScroller(): void {
+		this.scroller.addEventListener("scroll", this.scrollHandler, { passive: true });
+		this.resizeObserver.observe(this.scroller);
+	}
+
+	/**
+	 * Follow Obsidian's current preview scroller. Switching a note between editing
+	 * and Reading view (or a re-render) can give the reading view a fresh
+	 * `.markdown-preview-view`; holding on to the old one left the column inside a
+	 * detached element and searched it for highlights, so no card ever showed.
+	 * Re-resolve it on every layout pass, move the column in, and re-bind.
+	 */
+	private syncScroller(): void {
+		const current = previewScroller(this.readingView);
+		if (current !== this.scroller) {
+			this.scroller.removeEventListener("scroll", this.scrollHandler);
+			this.resizeObserver.unobserve(this.scroller);
+			this.scroller = current;
+			this.bindScroller();
+		}
+		if (this.container.parentElement !== this.readingView) this.readingView.appendChild(this.container);
+	}
+
 	destroy(): void {
 		this.destroyed = true;
 		this.clearDraft();
@@ -446,6 +478,30 @@ class ReadingMargin {
 
 /** Tracks one ReadingMargin per reading-view container, creating/destroying as
  *  markdown leaves enter/leave preview mode. */
+/**
+ * The note's own Reading view element. Looked up through Obsidian's preview
+ * mode, not "the first .markdown-reading-view in the tab": another plugin can
+ * render a hidden copy of the note there, and attaching to that copy put every
+ * highlight and card where you can't see them.
+ */
+const readingViewOf = (view: MarkdownView): HTMLElement | null => {
+	const el = view.previewMode?.containerEl;
+	if (el) {
+		if (el.classList.contains("markdown-reading-view")) return el;
+		const inner = el.querySelector<HTMLElement>(":scope > .markdown-reading-view");
+		if (inner) return inner;
+	}
+	const found = view.containerEl.querySelector(".markdown-reading-view");
+	return found instanceof HTMLElement ? found : null;
+};
+
+/** The reading view's own scroller: its direct `.markdown-preview-view` child,
+ *  not a nested one belonging to an embed or a hidden copy. */
+const previewScroller = (readingView: HTMLElement): HTMLElement =>
+	readingView.querySelector<HTMLElement>(":scope > .markdown-preview-view") ??
+	readingView.querySelector<HTMLElement>(".markdown-preview-view") ??
+	readingView;
+
 export class ReadingMarginManager {
 	private margins = new Map<HTMLElement, ReadingMargin>();
 
@@ -457,7 +513,7 @@ export class ReadingMarginManager {
 		for (const leaf of this.deps.app.workspace.getLeavesOfType("markdown")) {
 			const view = leaf.view;
 			if (!(view instanceof MarkdownView) || view.getMode() !== "preview") continue;
-			const rv = view.containerEl.querySelector(".markdown-reading-view");
+			const rv = readingViewOf(view);
 			if (!(rv instanceof HTMLElement)) continue;
 			active.add(rv);
 			if (mobile) {
@@ -494,7 +550,7 @@ export class ReadingMarginManager {
 		emptyAction: EmptySubmitAction,
 		targetHighlightId?: string,
 	): void {
-		const rv = view.containerEl.querySelector(".markdown-reading-view");
+		const rv = readingViewOf(view);
 		if (!(rv instanceof HTMLElement)) return;
 		let margin = this.margins.get(rv);
 		if (!margin) {

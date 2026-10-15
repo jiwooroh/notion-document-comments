@@ -1,4 +1,4 @@
-import { App, Component, MarkdownRenderer } from "obsidian";
+import { App, Component, MarkdownRenderer, Platform } from "obsidian";
 import type { Result } from "better-result";
 import { ParsedComment } from "../format/types";
 import { CardEntry, cardEntries, cardSignature, formatRelativeTime } from "./card-format";
@@ -71,6 +71,8 @@ export class Card {
 	/** Set by the margin layout: showing this thread in full would run into a
 	 *  neighboring card, so "auto" folds it. */
 	private crowded = false;
+	/** Last measured height of the in-flow "less" footer row (see heights()). */
+	private lessRowHeight = 22;
 	/** Whether onDocMouseDown is currently registered — active while the reply
 	 *  composer is open, torn down when it closes. */
 	private outsideClickBound = false;
@@ -215,11 +217,22 @@ export class Card {
 		return true;
 	}
 
-	/** Card height with the thread shown in full / folded to the clamp. */
+	/** Card height with the thread shown in full / folded to the clamp. Must not
+	 *  depend on which state the card is in right now: the footer is a "less"
+	 *  row in the flow when unfolded but an overlay ("more") when folded, so
+	 *  measuring the live card made an unfolded one look taller (→ crowded →
+	 *  fold) and a folded one shorter (→ fits → unfold), flickering forever near
+	 *  the threshold. Measure without the footer, then add the "less" row's
+	 *  height only to the full estimate. */
 	heights(): { full: number; folded: number } {
 		const thread = this.threadEl?.offsetHeight ?? 0;
-		const chrome = this.el.offsetHeight - (this.clipEl?.offsetHeight ?? 0);
-		return { full: chrome + thread, folded: chrome + Math.min(thread, CLAMP_HEIGHT) };
+		const foot = this.footEl;
+		const footInFlow = foot && !foot.hasClass("dc-foot-overlay") && !foot.hasClass("is-empty");
+		const footRow = footInFlow ? foot.offsetHeight + parseFloat(getComputedStyle(foot).marginTop || "0") : 0;
+		if (footInFlow && footRow > 0) this.lessRowHeight = footRow;
+		const base = this.el.offsetHeight - (this.clipEl?.offsetHeight ?? 0) - footRow;
+		const lessRow = this.overflows ? this.lessRowHeight : 0;
+		return { full: base + thread + lessRow, folded: base + Math.min(thread, CLAMP_HEIGHT) };
 	}
 
 	/** Whether the thread is currently cut to the clamp height. */
@@ -401,7 +414,9 @@ export class Card {
 			"",
 			"☺",
 		);
-		if (i === 0) {
+		// iPad keeps the header to React + ⋯; Resolve and Reply live in the ⋯ menu
+		// there (see openMoreMenu), so the narrower tablet card isn't crowded.
+		if (i === 0 && !Platform.isTablet) {
 			const resolved = this.comment.status === "resolved";
 			this.iconButton(
 				bar,
@@ -670,6 +685,13 @@ export class Card {
 		};
 		// A reply's own color follows the thread's anchor (entry 0) — only the root
 		// entry's menu offers changing it.
+		if (index === 0 && Platform.isTablet) {
+			const resolved = this.comment.status === "resolved";
+			addItem(resolved ? "rotate-ccw" : "check", resolved ? "Reopen" : "Resolve", () =>
+				this.cb.setResolved(this.id, !resolved),
+			);
+			addItem("reply", "Reply", () => this.openReply());
+		}
 		if (index === 0) {
 			addItem("palette", "Change color", () => this.openColorPicker(anchor));
 			addItem("underline", "Change style", () => this.openStylePicker(anchor));

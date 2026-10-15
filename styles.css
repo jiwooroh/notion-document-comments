@@ -31,6 +31,37 @@ body {
 .markdown-reading-view.dc-narrow {
 	--dc-margin-reserve: 0px;
 }
+/* iPad (Obsidian sets body.is-tablet): a narrower comment column and more
+   compact cards, so the margin fits beside the text on a tablet screen. */
+body.is-tablet {
+	--dc-margin-width: 270px;
+	--dc-card-pad: 10px;
+}
+body.is-tablet .doc-comment-card {
+	padding: 7px 10px;
+	font-size: var(--font-ui-smaller);
+	line-height: 1.4;
+	border-radius: 6px;
+}
+/* Center the card between the text and the screen edge: the note's own side
+   padding already puts ~20px between the text and the column, so the card
+   hugs the column's text side and leaves the matching space on the edge side. */
+body.is-tablet .doc-comment-card,
+body.is-tablet .dc-fold-badge {
+	left: 2px;
+	right: 22px;
+}
+body.is-tablet .doc-comment-card .dc-thread {
+	gap: 10px;
+}
+body.is-tablet .doc-comment-card .dc-entry__head {
+	gap: 6px;
+	margin-bottom: 3px;
+}
+body.is-tablet .doc-comment-card .dc-act {
+	width: 22px;
+	height: 22px;
+}
 
 /* ── Highlight color palettes (9 colors; Notion by default, or Apple) ─────
    Pick one in settings; --dc-highlight-* above just points at whichever id is
@@ -441,6 +472,13 @@ body.dc-annotation-both ::highlight(notion-style-comments-table) {
 /* Pin the column right after the readable-width text (CSS-only, so it never
    jumps on focus). Clamped so it can't push off the right edge on narrow panes.
    Keyed on the container's dc-has (set on .cm-editor / .markdown-reading-view). */
+/* In the editor the column lives inside the note's own scroller, so it moves
+   with the text and must not scroll by itself; cards stacked below the visible
+   area extend the note's scroll range instead. (Reading view keeps the column
+   beside its scroller, with the internal scroll above.) */
+.cm-editor .doc-comment-margin {
+	overflow: visible;
+}
 .cm-editor.dc-has .doc-comment-margin,
 .markdown-reading-view.dc-has .doc-comment-margin {
 	/* Mirror of the sizer's centering math: column begins right where the
@@ -497,6 +535,13 @@ body.dc-annotation-both ::highlight(notion-style-comments-table) {
 }
 
 /* ── Card ──────────────────────────────────────────────────────────────── */
+/* Cards use the note's text font everywhere. In the editor they'd inherit it
+   from .cm-editor anyway, but Reading view's margin and the sidebar sit outside
+   the rendered note and would fall back to the interface font, so the same
+   comment looked different by view. */
+.doc-comment-card {
+	font-family: var(--font-text);
+}
 .doc-comment-card {
 	position: absolute;
 	left: var(--dc-card-pad);

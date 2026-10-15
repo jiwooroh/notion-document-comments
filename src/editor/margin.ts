@@ -59,7 +59,10 @@ class MarginView implements PluginValue {
 	private destroyed = false;
 
 	constructor(private view: EditorView) {
-		this.container = view.dom.createDiv("doc-comment-margin");
+		// Inside the scroller (not beside it), so the cards scroll natively with the
+		// text instead of trailing a frame behind while JS re-positions them on each
+		// scroll event. Tops are in scroll-content coordinates (see reposition).
+		this.container = view.scrollDOM.createDiv("doc-comment-margin");
 		// The container lives inside .cm-editor, so CodeMirror would otherwise
 		// intercept clicks/keystrokes meant for our textareas and buttons. Stop
 		// those events at the container so our inputs behave like normal inputs.
@@ -220,7 +223,9 @@ class MarginView implements PluginValue {
 		// geometry-derived and only this measure pass needs to know about it.
 		this.view.dom.toggleClass("dc-narrow", isNarrowForMargin(this.view.scrollDOM));
 
-		const editorTop = this.view.dom.getBoundingClientRect().top;
+		// Top of the scrolled content, in viewport coordinates: anchor rects minus
+		// this give positions inside the scroller that stay put as it scrolls.
+		const editorTop = this.view.scrollDOM.getBoundingClientRect().top - this.view.scrollDOM.scrollTop;
 		// Gather geometry (reads) first, then write every top in one pass — cards are
 		// absolutely positioned, so a top write can't change any height.
 		const placements: Array<{ el: HTMLElement; top: number; height: number }> = [];
