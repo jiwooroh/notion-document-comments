@@ -1,3 +1,5 @@
+import { Platform } from "obsidian";
+
 /** Keep in sync with `--dc-margin-width` in styles.css. */
 export const MARGIN_WIDTH_PX = 320;
 
@@ -31,5 +33,9 @@ const readLineWidthPx = (el: HTMLElement): number => {
  *  of breathing room. Below this, the margin stops being reserved and its
  *  cards hide until hovered. */
 export const isNarrowForMargin = (container: HTMLElement): boolean => {
+	// iPad always keeps the column: the text narrows to make room instead of
+	// cards floating over it and hiding until a highlight is tapped (there's no
+	// hover on a touch screen to reveal them).
+	if (Platform.isTablet) return false;
 	return container.clientWidth < readLineWidthPx(container) + NARROW_SLACK_PX;
 };

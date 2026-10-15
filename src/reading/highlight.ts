@@ -109,7 +109,16 @@ export const highlightPostProcessor = (el: HTMLElement, ctx: MarkdownPostProcess
 			continue;
 		}
 		const range = anchorRange(c);
-		if (!range) continue;
+		if (!range) {
+			// One of the two markers was lost (an edit outside the plugin, an old
+			// bug), so there's no anchored range — but the body still saved the
+			// quoted text. Find that near the marker that remains, so the comment
+			// still shows instead of silently disappearing.
+			const at = c.close?.from ?? c.open?.to;
+			if (at === undefined || !c.quote || at < sectionFrom || at > sectionTo) continue;
+			wrapRenderedMatch(el, c.quote, c.id, c.status === "resolved", commentPreview(c), c.color, c.style);
+			continue;
+		}
 		// Only act on comments whose anchor starts within this rendered section.
 		if (range.from < sectionFrom || range.from >= sectionTo) continue;
 		const quote = text.slice(range.from, range.to);
@@ -121,8 +130,119 @@ export const highlightPostProcessor = (el: HTMLElement, ctx: MarkdownPostProcess
 			if (code) wrapFirstMatch(code, codeText, c.id, c.status === "resolved", preview, c.color, c.style);
 			continue;
 		}
-		wrapFirstMatch(el, quote, c.id, c.status === "resolved", preview, c.color, c.style);
+		wrapAnchor(el, quote, c.id, c.status === "resolved", preview, c.color, c.style);
 	}
+};
+
+/** Highlight a comment's anchored text in rendered output: the exact source text
+ *  in one text node when it's plain, otherwise a formatting-tolerant match. */
+export const wrapAnchor = (
+	root: HTMLElement,
+	source: string,
+	id: string,
+	resolved: boolean,
+	title: string | null,
+	color?: string,
+	style?: string,
+): boolean =>
+	wrapFirstMatch(root, source, id, resolved, title, color, style) ||
+	wrapRenderedMatch(root, source, id, resolved, title, color, style);
+
+/** Markdown/inline-syntax characters that never survive rendering as written
+ *  (emphasis, highlight, strike, code ticks, escapes). Ignored on both sides of
+ *  the formatting-tolerant match below. */
+const MARKUP_CHARS = /[*_=~`\\]/;
+
+/** Source text of an anchor → roughly the text Reading view shows for it: other
+ *  comments' markers and HTML tags dropped, links reduced to their label, and
+ *  line-start syntax (blockquote `>`, list bullets) on continuation lines gone. */
+const renderedText = (source: string): string =>
+	source
+		.replace(/<!--[\s\S]*?-->/g, "")
+		.replace(/(^|\n)[ \t]*(?:>[ \t]?)+/g, "$1")
+		.replace(/\n[ \t]*(?:[-*+]|\d+[.)])[ \t]+/g, "\n")
+		.replace(/!?\[\[([^\]|]+)\|([^\]]+)\]\]/g, "$2")
+		.replace(/!?\[\[([^\]]+)\]\]/g, "$1")
+		.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+		.replace(/<[^>]+>/g, "");
+
+/**
+ * Formatting-tolerant highlight: an anchor whose source contains Markdown
+ * (**bold**, a [link](…), ==highlight==, …) or crosses a formatting boundary
+ * renders as several text nodes, so the exact single-node search misses it and
+ * Reading view never shows its card. Compare the rendered text instead —
+ * ignoring markup characters and collapsing whitespace on both sides — then
+ * wrap each text node's part of the match in its own span.
+ */
+const wrapRenderedMatch = (
+	root: HTMLElement,
+	source: string,
+	id: string,
+	resolved: boolean,
+	title: string | null,
+	color?: string,
+	style?: string,
+): boolean => {
+	let needle = "";
+	for (const ch of renderedText(source)) {
+		if (MARKUP_CHARS.test(ch)) continue;
+		if (/\s/.test(ch)) {
+			if (needle && !needle.endsWith(" ")) needle += " ";
+		} else needle += ch;
+	}
+	needle = needle.trim();
+	if (!needle) return false;
+
+	const doc = root.ownerDocument;
+	let hay = "";
+	const map: Array<{ node: Text; offset: number }> = [];
+	const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+	for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+		for (let i = 0; i < node.data.length; i++) {
+			const ch = node.data.charAt(i);
+			if (MARKUP_CHARS.test(ch)) continue;
+			if (/\s/.test(ch)) {
+				if (hay.endsWith(" ")) continue;
+				hay += " ";
+			} else hay += ch;
+			map.push({ node, offset: i });
+		}
+	}
+	const at = hay.indexOf(needle);
+	if (at < 0) return false;
+	const first = map[at];
+	const last = map[at + needle.length - 1];
+	if (!first || !last) return false;
+
+	// Each text node's slice of the match, in document order.
+	const parts: Array<{ node: Text; from: number; to: number }> = [];
+	for (let i = at; i < at + needle.length; i++) {
+		const m = map[i];
+		if (!m) continue;
+		const part = parts[parts.length - 1];
+		if (part && part.node === m.node) part.to = m.offset + 1;
+		else parts.push({ node: m.node, from: m.offset, to: m.offset + 1 });
+	}
+	let cls = resolved ? "doc-comment-span is-resolved" : "doc-comment-span";
+	if (color) cls += ` dc-color-${color}`;
+	if (style) cls += ` dc-style-${style}`;
+	let wrapped = false;
+	parts.forEach((part, i) => {
+		const range = doc.createRange();
+		range.setStart(part.node, part.from);
+		range.setEnd(part.node, part.to);
+		const span = root.createSpan({ cls });
+		span.detach();
+		span.setAttribute("data-cid", id);
+		if (title && i === 0) span.setAttribute("title", title);
+		try {
+			range.surroundContents(span);
+			wrapped = true;
+		} catch {
+			// a slice that can't be wrapped is skipped; the rest still highlight
+		}
+	});
+	return wrapped;
 };
 
 /** Convert one complete Markdown code span to the text that Reading view renders. */

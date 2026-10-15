@@ -5,6 +5,29 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.12
+
+![Comment cards beside the note on iPad](https://raw.githubusercontent.com/jiwooroh/obsidian-document-comments/main/docs/screenshots/ipad-0.2.12.webp)
+
+### iPad
+
+- **Comments show beside the text.** When a note has comments, the text narrows so the comment column fits next to it, instead of cards floating over the text and hiding until you tap a highlight.
+- **Compact cards:** a 270px comment column, tighter padding and spacing, smaller buttons, and slightly rounded corners. Cards sit evenly between the text and the screen edge.
+- **Simpler buttons:** each comment shows just React and ⋯. Resolve/Reopen and Reply are in the ⋯ menu (you can also tap a card to reply).
+
+### Reading view fixes
+
+- **Comments no longer disappear in Reading view.** The plugin attached to the first Reading view element it found in the tab, which could be a hidden copy of the note (for example one rendered by another plugin), so highlights and cards went there out of sight. It now uses the note's own Reading view.
+- **Commented text with formatting is found:** bold, italic, links and wikilinks, `==highlights==`, text that crosses a formatting boundary, and overlapping comments all get their highlight and card now (in Reading view and PDF export).
+- **Text across blockquote or list lines** is found too.
+- **Comments that lost a marker** (for example after an edit outside the plugin) show again, found by the quote saved with the comment.
+
+### Everywhere
+
+- **Editor: comments scroll exactly with the text.** The comment column now lives inside the note's own scroll area in the editing view, so cards no longer trail behind while scrolling.
+- **No more flickering cards:** a long comment that just barely fit kept folding and unfolding; it now stays put.
+- **Cards use your note's text font** in every view (Reading view and the sidebar used the interface font).
+
 ## 0.2.11
 
 ### Fixed

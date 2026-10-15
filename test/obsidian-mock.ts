@@ -90,3 +90,5 @@ export class Menu {
 }
 
 export const setIcon = (): void => {};
+
+export const Platform = { isMobile: false, isPhone: false, isTablet: false, isDesktop: true };
