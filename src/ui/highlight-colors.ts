@@ -82,7 +82,7 @@ const PALETTES: Record<ColorScheme, Palette> = {
 		green: { light: { bg: "#EEF3EC", fg: "#548164" }, dark: { bg: "#2A3C31", fg: "#659C75" } },
 		blue: { light: { bg: "#E9F3F7", fg: "#487CA5" }, dark: { bg: "#1E394C", fg: "#6786C4" } },
 		purple: { light: { bg: "#F6F3F9", fg: "#8A67AB" }, dark: { bg: "#3A2E47", fg: "#956ACD" } },
-		pink: { light: { bg: "#F8F1F5", fg: "#B35388" }, dark: { bg: "#492E3B", fg: "#C25F94" } },
+		pink: { light: { bg: "#FDE8F1", fg: "#B35388" }, dark: { bg: "#492E3B", fg: "#C25F94" } },
 		red: { light: { bg: "#FAECEC", fg: "#C4554D" }, dark: { bg: "#4D302B", fg: "#CF5D57" } },
 	},
 	apple: {
@@ -90,11 +90,11 @@ const PALETTES: Record<ColorScheme, Palette> = {
 		brown: { light: { bg: "#B38C6526", fg: "#B38C65" }, dark: { bg: "#B8946F26", fg: "#B8946F" } },
 		orange: { light: { bg: "#F0934326", fg: "#F09343" }, dark: { bg: "#F0974826", fg: "#F09748" } },
 		yellow: { light: { bg: "#F4C24233", fg: "#F4C242" }, dark: { bg: "#F6CE5526", fg: "#F6CE55" } },
-		green: { light: { bg: "#53C67D26", fg: "#53C67D" }, dark: { bg: "#5EC98626", fg: "#5EC986" } },
-		blue: { light: { bg: "#3B86F726", fg: "#3B86F7" }, dark: { bg: "#3F8FF726", fg: "#3F8FF7" } },
+		green: { light: { bg: "#30CF6A26", fg: "#30CF6A" }, dark: { bg: "#51DB8426", fg: "#51DB84" } },
+		blue: { light: { bg: "#3869F026", fg: "#3869F0" }, dark: { bg: "#598BF826", fg: "#598BF8" } },
 		purple: { light: { bg: "#BB3ED926", fg: "#BB3ED9" }, dark: { bg: "#CA43EA26", fg: "#CA43EA" } },
-		pink: { light: { bg: "#EB445A26", fg: "#EB445A" }, dark: { bg: "#EB4B6326", fg: "#EB4B63" } },
-		red: { light: { bg: "#ED5D4A26", fg: "#ED5D4A" }, dark: { bg: "#EE695826", fg: "#EE6958" } },
+		pink: { light: { bg: "#ED358E26", fg: "#ED358E" }, dark: { bg: "#F75FA826", fg: "#F75FA8" } },
+		red: { light: { bg: "#DE2E2126", fg: "#DE2E21" }, dark: { bg: "#EC5F5526", fg: "#EC5F55" } },
 	},
 };
 

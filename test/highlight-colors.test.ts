@@ -13,8 +13,8 @@ describe("default highlight colors", () => {
 	});
 
 	test("Apple's translucent fills show over the page background in the picker", () => {
-		expect(defaultHighlightHex("red", "light", 0, "apple")).toBe("#fce7e4");
+		expect(defaultHighlightHex("red", "light", 0, "apple")).toBe("#fae0de");
 		expect(defaultHighlightHex("yellow", "dark", 0, "apple")).toBe("#3e3826");
-		expect(defaultHighlightHex("blue", "light", 100, "apple")).toBe("#3b86f7");
+		expect(defaultHighlightHex("blue", "light", 100, "apple")).toBe("#3869f0");
 	});
 });
