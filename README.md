@@ -123,6 +123,8 @@ Phones show highlights only, and you read and add comments in the sidebar and a 
 
 ### Reliable Reading view
 
+![Comment cards beside highlights in Reading view on Mac](docs/screenshots/mac-0.2.12.jpg)
+
 Comments show in Reading view even when the commented text has formatting in it (bold, italic, links, wikilinks, `==highlights==`), crosses a formatting boundary, runs across blockquote or list lines, or overlaps another comment. A comment that lost one of its markers (for example after an edit outside the plugin) is found by the quote saved with it.
 
 ### Scrolling

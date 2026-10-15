@@ -17,6 +17,8 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ### Reading view fixes
 
+![Comment cards beside highlights in Reading view on Mac](https://raw.githubusercontent.com/jiwooroh/obsidian-document-comments/main/docs/screenshots/mac-0.2.12.jpg)
+
 - **Comments no longer disappear in Reading view.** The plugin attached to the first Reading view element it found in the tab, which could be a hidden copy of the note (for example one rendered by another plugin), so highlights and cards went there out of sight. It now uses the note's own Reading view.
 - **Commented text with formatting is found:** bold, italic, links and wikilinks, `==highlights==`, text that crosses a formatting boundary, and overlapping comments all get their highlight and card now (in Reading view and PDF export).
 - **Text across blockquote or list lines** is found too.
