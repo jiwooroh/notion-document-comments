@@ -5,6 +5,27 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.11
+
+### Fixed
+
+- **Deleting a comment no longer changes your note.** When the commented text was selected together with its line break (for example a triple-clicked line or a whole paragraph), deleting the comment also removed the blank line next to it, joining two paragraphs. Now only the comment's hidden markers are removed and the note is left exactly as it was.
+
+### Colors
+
+- **Apple scheme** updated (text color light / dark; highlights are the same colors at 15%):
+
+| Color | Text: light | Text: dark | Highlight: light | Highlight: dark |
+|---|---|---|---|---|
+| Red | `#DE2E21` | `#EC5F55` | `#DE2E2126` | `#EC5F5526` |
+| Green | `#30CF6A` | `#51DB84` | `#30CF6A26` | `#51DB8426` |
+| Blue | `#3869F0` | `#598BF8` | `#3869F026` | `#598BF826` |
+| Pink | `#ED358E` | `#F75FA8` | `#ED358E26` | `#F75FA826` |
+
+  Red no longer has an orange tint, and pink now leans magenta so the two are easy to tell apart. Orange, yellow, purple, gray, and brown are unchanged.
+
+- **Notion scheme pink** (light mode) highlight is now `#FDE8F1` (RGB 253, 232, 241), a clearer pink.
+
 ## 0.2.10
 
 ### New: Color scheme setting

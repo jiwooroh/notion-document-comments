@@ -286,7 +286,15 @@ const toggleReactions = (reactions: Reaction[], emoji: string, author: string): 
 };
 
 export const computeDeleteComment = (doc: string, id: string): Result<Change[], string> => {
-	if (!parseComments(doc).some((x) => x.id === id)) return Result.err("Comment not found.");
+	const parsed = parseComments(doc).filter((x) => x.id === id);
+	if (parsed.length === 0) return Result.err("Comment not found.");
+	// Only a code comment's markers were written on lines of their own (wrapping
+	// the fenced block), so only those take their line break with them. A prose
+	// comment's markers sit inline in the user's text — even when they end up
+	// alone on a line (a selection that included a line break, e.g. a
+	// triple-clicked line, puts a marker on the blank line between paragraphs).
+	// Swallowing that line break merged the paragraphs, changing the user's text.
+	const code = parsed.some(isCodeComment);
 	// Remove EVERY occurrence of this id's markers/body, not just the first the
 	// parser records. Copy-pasting a commented span duplicates the markers; deleting
 	// only the first pair used to leave invisible, UI-unremovable leftovers behind.
@@ -303,7 +311,7 @@ export const computeDeleteComment = (doc: string, id: string): Result<Change[], 
 	// A marker alone on its line (code-comment block wrap) takes its line terminator
 	// with it, so deleting the comment doesn't leave a blank line around the code block.
 	const aloneOnLine = (from: number, to: number): boolean =>
-		(from === 0 || leadingTerm(from) > 0) && (to === doc.length || trailingTerm(to) > 0);
+		code && (from === 0 || leadingTerm(from) > 0) && (to === doc.length || trailingTerm(to) > 0);
 	scanAll(doc, new RegExp(`<!--c:${id}-->`, "g"), (from, to) => {
 		const end = aloneOnLine(from, to) ? to + trailingTerm(to) : to;
 		ranges.push({ from, to: end, insert: "" });
