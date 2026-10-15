@@ -26,6 +26,40 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 - **Notion scheme pink** (light mode) highlight is now `#FDE8F1` (RGB 253, 232, 241), a clearer pink.
 
+### Full color reference
+
+All highlight and text colors in 0.2.11, for both color schemes. **Text** colors the underline, hover tint, and colored comment text. **Highlight** is the fill behind commented text (at 0% intensity). Apple's highlights are translucent: the last two digits are opacity (`26` = 15%, `33` = 20%). For text + background, use a color's text value on its own highlight, for example `#DE2E21` on `#DE2E2126`.
+
+#### Notion
+
+| Color | Text: light | Text: dark | Highlight: light | Highlight: dark |
+|---|---|---|---|---|
+| Red | `#C4554D` | `#CF5D57` | `#FAECEC` | `#4D302B` |
+| Orange | `#CC782F` | `#BD8052` | `#F8ECDF` | `#573C27` |
+| Yellow | `#C29343` | `#C29A56` | `#FAF3DE` | `#53442C` |
+| Green | `#548164` | `#659C75` | `#EEF3EC` | `#2A3C31` |
+| Blue | `#487CA5` | `#6786C4` | `#E9F3F7` | `#1E394C` |
+| Purple | `#8A67AB` | `#956ACD` | `#F6F3F9` | `#3A2E47` |
+| Pink | `#B35388` | `#C25F94` | `#FDE8F1` | `#492E3B` |
+| Gray | `#787774` | `#9B9B9B` | `#F1F1EF` | `#2F2F2F` |
+| Brown | `#976D57` | `#B28773` | `#F3EEEE` | `#46332A` |
+| Default | theme text | theme text | theme highlight | theme highlight |
+
+#### Apple
+
+| Color | Text: light | Text: dark | Highlight: light | Highlight: dark |
+|---|---|---|---|---|
+| Red | `#DE2E21` | `#EC5F55` | `#DE2E2126` | `#EC5F5526` |
+| Orange | `#F09343` | `#F09748` | `#F0934326` | `#F0974826` |
+| Yellow | `#F4C242` | `#F6CE55` | `#F4C24233` | `#F6CE5526` |
+| Green | `#30CF6A` | `#51DB84` | `#30CF6A26` | `#51DB8426` |
+| Blue | `#3869F0` | `#598BF8` | `#3869F026` | `#598BF826` |
+| Purple | `#BB3ED9` | `#CA43EA` | `#BB3ED926` | `#CA43EA26` |
+| Pink | `#ED358E` | `#F75FA8` | `#ED358E26` | `#F75FA826` |
+| Gray | `#9898A0` | `#A0A0A7` | `#9898A026` | `#A0A0A726` |
+| Brown | `#B38C65` | `#B8946F` | `#B38C6526` | `#B8946F26` |
+| Default | theme text | theme text | theme highlight | theme highlight |
+
 ## 0.2.10
 
 ### New: Color scheme setting
