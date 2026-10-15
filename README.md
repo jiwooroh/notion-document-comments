@@ -95,7 +95,7 @@ When you export a note to PDF, each commented passage is highlighted with a foot
 
 ### Narrow window layout
 
-When the window is too narrow for the margin (or an iPad in portrait), comment cards hide and appear when you hover over or tap the highlighted text, so the note keeps its full width.
+On desktop, when the window is too narrow for the margin, comment cards hide and appear when you hover over the highlighted text, so the note keeps its full width. (iPad always keeps the column; see below.)
 
 ![Narrow window layout](docs/screenshots/narrow-layout.png)
 
@@ -113,11 +113,26 @@ Long comments show in full when there's room. A comment folds to a "more" previe
 
 ### iPad support
 
-iPad shows comment cards in the margin, like desktop. Phones show highlights only, and you read and add comments in the sidebar and a pop-up.
+![Comment cards beside the note on iPad](docs/screenshots/ipad-0.2.12.webp)
+
+- iPad shows comment cards in the margin, like desktop. When a note has comments, the text narrows so the column always fits beside it.
+- Cards are compact on iPad: a 270px column, tighter spacing, and smaller buttons, sitting evenly between the text and the screen edge.
+- Each comment shows just **React** and **⋯**. **Resolve** and **Reply** are in the **⋯** menu, or tap the card to reply.
+
+Phones show highlights only, and you read and add comments in the sidebar and a pop-up.
+
+### Reliable Reading view
+
+Comments show in Reading view even when the commented text has formatting in it (bold, italic, links, wikilinks, `==highlights==`), crosses a formatting boundary, runs across blockquote or list lines, or overlaps another comment. A comment that lost one of its markers (for example after an edit outside the plugin) is found by the quote saved with it.
+
+### Scrolling
+
+In the editor, comment cards scroll exactly with the text.
 
 ### Smaller touches
 
 - Comment boxes grow as you type.
+- Cards use your note's text font in every view.
 - Click your own comment text to edit it.
 
 ## Original features
@@ -277,7 +292,7 @@ The Reading view command cannot add comments to embedded content.
 
 ### Manage a comment
 
-Select a card to open its reply field. Each entry has **react**, **resolve**, and **reply** buttons, plus a **⋯** menu to change the comment's color or style, or delete it. Click your own comment text to edit it.
+Select a card to open its reply field. Each entry has **react**, **resolve**, and **reply** buttons, plus a **⋯** menu to change the comment's color or style, or delete it. On iPad, only **react** and **⋯** are shown and **resolve** / **reply** are in the **⋯** menu. Click your own comment text to edit it.
 
 Use the **Open comments sidebar** command or ribbon icon to show all comments in the active note.
 
@@ -309,7 +324,7 @@ The plugin uses `me` when the Author setting is empty. Your profile photo and **
 
 ## Desktop, tablet, and phone behavior
 
-Desktop and tablet (iPad) views show cards in a margin beside the note. The cards align with their selected text and avoid overlaps.
+Desktop and tablet (iPad) views show cards in a margin beside the note. The cards align with their selected text and avoid overlaps. On iPad the text always narrows to make room for the column; on desktop a very narrow window hides cards until you hover a highlight.
 
 Phone views show the highlights without a margin. Use the sidebar to read and manage comments there.
 
@@ -335,9 +350,9 @@ The plugin does not use the network, telemetry, or accounts. It stores all comme
 
 ## Known limitations
 
-- Reading view comments work best with plain text inside one paragraph.
+- In Reading view, cards follow scrolling a moment behind the text (in the editor they move exactly with it).
 - Reading view cannot add a comment to text inside an embed.
-- Avoid overlapping comment anchors because comments on the same words can be difficult to manage.
+- Overlapping comments display correctly, but comments on the same words can be difficult to manage.
 - The sidebar shows an orphaned comment when no matching selected text remains.
 - Live Preview table highlights require browser support for CSS Custom Highlight.
 
