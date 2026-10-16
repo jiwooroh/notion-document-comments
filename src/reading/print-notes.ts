@@ -117,8 +117,8 @@ export const printNotesPostProcessor = async (
 const useLightCustomColors = (el: HTMLElement, lightColors: Record<string, string>): void => {
 	const body = el.ownerDocument.body;
 	const stale = Array.from({ length: body.style.length }, (_, i) => body.style.item(i));
-	for (const prop of stale) if (prop.startsWith("--dc-hl-")) body.style.removeProperty(prop);
-	for (const [id, hex] of Object.entries(lightColors)) body.style.setProperty(`--dc-hl-${id}`, hex);
+	for (const prop of stale) if (prop.startsWith("--dc-hl-")) body.setCssProps({ [prop]: "" });
+	for (const [id, hex] of Object.entries(lightColors)) body.setCssProps({ [`--dc-hl-${id}`]: hex });
 };
 
 /**

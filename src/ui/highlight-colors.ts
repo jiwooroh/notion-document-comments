@@ -38,16 +38,18 @@ export const CUSTOMIZABLE_HIGHLIGHT_COLORS: HighlightColorDef[] = HIGHLIGHT_COLO
  *  `body.theme-dark`, with no JS re-run needed on theme change. */
 export const applyHighlightColor = (colorId: string): void => {
 	const id = HIGHLIGHT_COLORS.some((c) => c.id === colorId) ? colorId : DEFAULT_HIGHLIGHT_COLOR;
-	document.body.style.setProperty("--dc-highlight-bg", `var(--dc-hl-${id})`);
-	document.body.style.setProperty("--dc-highlight-bg-active", `var(--dc-hl-${id}-active)`);
-	document.body.style.setProperty("--dc-highlight-border", `var(--dc-hl-${id}-border)`);
+	activeDocument.body.setCssProps({
+		"--dc-highlight-bg": `var(--dc-hl-${id})`,
+		"--dc-highlight-bg-active": `var(--dc-hl-${id}-active)`,
+		"--dc-highlight-border": `var(--dc-hl-${id}-border)`,
+	});
 };
 
 /** Sets how strongly each of the 9 colors' own tone mixes into its pale base
  *  (see --dc-highlight-intensity in styles.css) — the "opacity" slider in
  *  settings. Affects every color at once, since it's one shared mix ratio. */
 export const applyHighlightIntensity = (percent: number): void => {
-	document.body.style.setProperty("--dc-highlight-intensity", `${percent}%`);
+	activeDocument.body.setCssProps({ "--dc-highlight-intensity": `${percent}%` });
 };
 
 export type ColorScheme = "notion" | "apple";
@@ -62,7 +64,7 @@ export const DEFAULT_COLOR_SCHEME: ColorScheme = "notion";
 /** Switches the 9 colors between palettes with a body class (see styles.css's
  *  `body.dc-scheme-apple` blocks); Notion needs no class. */
 export const applyColorScheme = (scheme: string): void => {
-	document.body.classList.toggle("dc-scheme-apple", scheme === "apple");
+	activeDocument.body.toggleClass("dc-scheme-apple", scheme === "apple");
 };
 
 type Swatch = { bg: string; fg: string };
@@ -134,11 +136,11 @@ export const defaultHighlightHex = (
  *  sibling Notion Selection Toolbar plugin uses for its own highlight colors.
  *  Picks the light or dark map by the theme currently on <body>. */
 export const applyCustomHighlightColors = (light: Record<string, string>, dark: Record<string, string>): void => {
-	const active = document.body.classList.contains("theme-dark") ? dark : light;
+	const active = activeDocument.body.hasClass("theme-dark") ? dark : light;
 	for (const c of CUSTOMIZABLE_HIGHLIGHT_COLORS) {
 		const custom = active[c.id];
-		if (custom) document.body.style.setProperty(`--dc-hl-${c.id}`, custom);
-		else document.body.style.removeProperty(`--dc-hl-${c.id}`);
+		// An empty value removes the override.
+		activeDocument.body.setCssProps({ [`--dc-hl-${c.id}`]: custom ?? "" });
 	}
 };
 
@@ -163,6 +165,6 @@ export const DEFAULT_ANNOTATION_STYLE = "highlight";
  *  the fill and shows the underline, `both` shows both. Hovering an anchor
  *  still shows its momentary active color in every mode. */
 export const applyAnnotationStyle = (style: string): void => {
-	document.body.classList.toggle("dc-annotation-underline", style === "underline");
-	document.body.classList.toggle("dc-annotation-both", style === "both");
+	activeDocument.body.toggleClass("dc-annotation-underline", style === "underline");
+	activeDocument.body.toggleClass("dc-annotation-both", style === "both");
 };

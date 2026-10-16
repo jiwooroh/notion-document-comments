@@ -217,7 +217,7 @@ export class CommentsSidebarView extends ItemView {
 		all.setText("All");
 		for (const { key, count } of present) {
 			const el = chip(`${colorLabel(key)} (${count})`, this.colorFilter.has(key), () => this.toggleColor(key));
-			el.createSpan({ cls: "dc-sidebar__swatch" }).style.setProperty("--dc-swatch", colorSwatch(key));
+			el.createSpan({ cls: "dc-sidebar__swatch" }).setCssProps({ "--dc-swatch": colorSwatch(key) });
 			el.createSpan({ cls: "dc-sidebar__color-count", text: String(count) });
 		}
 	}

@@ -60,10 +60,26 @@ export const decodeCodeQuote = (s: string): string => {
 };
 
 export const splitReactionAuthors = (s: string): string[] => {
-	return s
-		.split(/(?<!\\),/)
+	return splitUnescapedCommas(s)
 		.map((author) =>
 			author.trim().replace(/\\(.)/g, (match, c: string) => (c === "," ? "," : c === "\\" ? "\\" : match)),
 		)
 		.filter(Boolean);
+};
+
+/** Split on commas not preceded by a backslash. A loop rather than a
+ *  lookbehind regex, which older iOS versions don't support. */
+const splitUnescapedCommas = (s: string): string[] => {
+	const parts: string[] = [];
+	let start = 0;
+	for (let i = 0; i < s.length; i++) {
+		if (s[i] === "\\")
+			i++; // skip the escaped character
+		else if (s[i] === ",") {
+			parts.push(s.slice(start, i));
+			start = i + 1;
+		}
+	}
+	parts.push(s.slice(start));
+	return parts;
 };

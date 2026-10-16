@@ -747,7 +747,7 @@ export class Card {
 				cls: "dc-color-swatch",
 				attr: { type: "button", "aria-label": c.label, title: c.label },
 			});
-			btn.style.backgroundColor = `var(--dc-hl-${c.id})`;
+			btn.setCssStyles({ backgroundColor: `var(--dc-hl-${c.id})` });
 			btn.toggleClass("is-selected", current === c.id);
 			btn.addEventListener("click", (ev) => {
 				ev.stopPropagation();

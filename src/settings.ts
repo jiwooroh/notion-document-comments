@@ -331,7 +331,6 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 					slider
 						.setLimits(min, max, step)
 						.setValue(Number(this.plugin.settings[meta.key]))
-						.setDynamicTooltip()
 						.onChange((value) => void this.applySetting(meta.key, value)),
 				);
 			} else {
