@@ -31,6 +31,8 @@ import { DEFAULT_SETTINGS, DocCommentsSettings, DocCommentsSettingTab } from "./
 import { tableHighlightPlugin } from "./editor/table-highlights";
 import { htmlHighlightPlugin } from "./editor/html-highlights";
 import { activeAnchorField } from "./editor/active";
+import { computeLineStartMarkupFixes } from "./format/line-start";
+import { applyCommentEdit } from "./editor/routing";
 import {
 	applyAnnotationStyle,
 	applyColorScheme,
@@ -169,6 +171,14 @@ export default class DocCommentsPlugin extends Plugin {
 				if (shown) this.scheduleReadingRefresh();
 			}),
 		);
+		// Comments made before 0.2.14 could start a line with their marker, which
+		// stops Markdown from formatting that line (literal `**` in Reading view
+		// and PDF). Move those markers inside the markup when the note is opened.
+		this.registerEvent(
+			this.app.workspace.on("file-open", (file) => {
+				if (file?.extension === "md") void this.fixLineStartMarkers(file);
+			}),
+		);
 		// Fires on theme/appearance changes (light↔dark, snippet toggles, …) — a
 		// custom per-color override is picked per-theme, so switching needs a
 		// re-apply to pick up the other theme's map.
@@ -207,6 +217,7 @@ export default class DocCommentsPlugin extends Plugin {
 			for (const [id, label] of [
 				["default", "Default view"],
 				["compact", "Compact (comment text only)"],
+				["pdf", "PDF style (note icons)"],
 			] as const) {
 				menu.addItem((item) =>
 					item
@@ -431,13 +442,24 @@ export default class DocCommentsPlugin extends Plugin {
 	}
 
 	/** Compact cards: a body class the stylesheet keys off (no re-render). */
+	/** See insideLineStartMarkup (format/line-start.ts). Only writes when needed. */
+	private async fixLineStartMarkers(file: TFile): Promise<void> {
+		const text = await this.app.vault.cachedRead(file);
+		if (!text.includes("<!--c:") || computeLineStartMarkupFixes(text).length === 0) return;
+		await applyCommentEdit(this.app, file, (doc) => Result.ok(computeLineStartMarkupFixes(doc)));
+	}
+
 	applyCardView(): void {
-		const compact = this.settings.cardView === "compact";
+		const view = this.settings.cardView;
+		const compact = view === "compact";
 		activeDocument.body.toggleClass("dc-compact-cards", compact);
+		activeDocument.body.toggleClass("dc-pdf-cards", view === "pdf");
 		const indicator = this.settings.cardIndicator;
 		for (const mode of ["line", "tint", "dot", "none"])
 			activeDocument.body.toggleClass(`dc-indicator-${mode}`, mode === indicator);
-		this.cardViewStatus?.setText(compact ? "💬 Compact" : "💬 Default");
+		this.cardViewStatus?.setText(compact ? "💬 Compact" : view === "pdf" ? "💬 PDF style" : "💬 Default");
+		// Cards are laid out differently per view; re-run layout everywhere.
+		this.refreshEditors();
 	}
 
 	/** Re-applies the chosen palette color, the intensity slider, any custom

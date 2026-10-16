@@ -4,6 +4,7 @@ import { anchorRange } from "../format/parse";
 import type { ParsedComment } from "../format/types";
 import { commentConfig, type CommentConfig } from "./config";
 import { getComments } from "./state";
+import { isHoverOnly } from "./active";
 
 export type TableHighlightTarget = {
 	table: number;
@@ -81,7 +82,7 @@ class TableHighlights {
 		if (update.docChanged) this.syncActive();
 		if (!this.active) return;
 		// Skip cursor-only updates; empty dispatches are how settings changes refresh.
-		const settingsRefresh = update.transactions.some((tr) => !tr.docChanged && !tr.selection);
+		const settingsRefresh = update.transactions.some((tr) => !tr.docChanged && !tr.selection && !isHoverOnly(tr));
 		if (update.docChanged || update.viewportChanged || update.geometryChanged || settingsRefresh) this.schedule();
 	}
 

@@ -89,6 +89,18 @@ Pair this fork with [Notion Selection Toolbar](https://github.com/jiwooroh/notio
 
 ![Comment button in Notion Selection Toolbar](docs/screenshots/selection-toolbar.png)
 
+### Card views
+
+Switch how comment cards look from **💬** in the status bar at the bottom of Obsidian, or in settings (**Comment card view**):
+
+- **Default**: full cards with author, date, buttons, and reactions.
+- **Compact**: only the comment text; click a card to see its buttons.
+- **PDF style**: like a PDF reader. Each comment is a small note icon in its color right next to the text. Hover it to see the first line, and click the icon or the highlight to open the card beside it. Press Escape, click elsewhere, or click the icon again to close it.
+
+![PDF style card view](docs/screenshots/pdf-style-0.2.14.jpg)
+
+**Card color indicator** (settings) shows each card's highlight color as a line on the left, a colored card, a dot, or nothing, so you can tell which card belongs to which text. In the sidebar, pick one or more colors under Open / Resolved / All to see only those comments.
+
 ### Comments in PDF export
 
 When you export a note to PDF, each commented passage is highlighted with a footnote number, and its comment (with replies) is printed beside it in a right-hand margin column. Turn it off with **Show comments in PDF export** in settings, or run **Toggle comments in PDF export** from the command palette. Resolved comments are included only when **Show resolved comments** is on.
@@ -134,7 +146,8 @@ In the editor, comment cards scroll exactly with the text.
 ### Smaller touches
 
 - Comment boxes grow as you type.
-- Cards use your note's text font in every view.
+- Comments use the interface font, even in notes with their own font (a serif cssclass, for example).
+- A comment on bold or other formatting at the start of a line no longer breaks that line's formatting.
 - Click your own comment text to edit it.
 
 ## Original features
@@ -317,6 +330,8 @@ The plugin uses `me` when the Author setting is empty. Your profile photo and **
 | Show author names | Show who wrote each comment and reply, on cards and hover previews | On |
 | Show resolved comments | Keep resolved comments visible | Off |
 | Allow empty comments | Let a comment be saved without text (highlight only) | Off |
+| Comment card view | Default, Compact, or PDF style (also in the status bar) | Default |
+| Card color indicator | How a card shows its highlight color: line, colored card, dot, or nothing | Line |
 | Show comments in PDF export | Print comments in a margin column when exporting to PDF | On |
 | Annotation style | Highlight, Underline, or Highlight + underline | Highlight |
 | Color scheme | Palette for the 9 colors: Notion or Apple | Notion |

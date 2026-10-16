@@ -58,6 +58,7 @@ export class CommentsSidebarView extends ItemView {
 	/** Colors to show; empty = all colors. */
 	private colorFilter = new Set<string>();
 	private colorsEl!: HTMLElement;
+	private colorsKey = "";
 	private revealFrame: number | null = null;
 
 	constructor(
@@ -196,6 +197,10 @@ export class CommentsSidebarView extends ItemView {
 
 	private paintColors(comments: ParsedComment[]): void {
 		const present = colorsPresent(comments);
+		// Refreshes run on every edit; rebuild the chips only when they change.
+		const key = `${present.map((p) => `${p.key}:${p.count}`).join(",")}|${Array.from(this.colorFilter).join(",")}`;
+		if (key === this.colorsKey) return;
+		this.colorsKey = key;
 		this.colorsEl.empty();
 		// One color (or none) — nothing to filter by.
 		this.colorsEl.toggleClass("is-hidden", present.length < 2);

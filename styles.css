@@ -728,12 +728,17 @@ body.dc-annotation-underline ::highlight(nsc-html-gray-default) {
 }
 
 /* ── Card ──────────────────────────────────────────────────────────────── */
-/* Cards use the note's text font everywhere. In the editor they'd inherit it
-   from .cm-editor anyway, but Reading view's margin and the sidebar sit outside
-   the rendered note and would fall back to the interface font, so the same
-   comment looked different by view. */
-.doc-comment-card {
-	font-family: var(--font-text);
+/* Comments always use the interface font, never the note's text font — a
+   per-note font (a cssclass like a serif note setting --font-text, or a snippet
+   forcing font-family with !important on everything in the note) shouldn't
+   restyle the comments. The `:not(#dc-font)` adds id-level weight so this wins
+   over such snippets; code keeps its monospace font. Covers the margin and
+   sidebar cards and the comments printed into PDF exports. */
+.doc-comment-card:not(#dc-font),
+.doc-comment-card :not(#dc-font):not(code):not(code *):not(pre):not(pre *),
+.dc-print-note:not(#dc-font),
+.dc-print-note :not(#dc-font):not(code):not(code *):not(pre):not(pre *) {
+	font-family: var(--font-interface) !important;
 }
 .doc-comment-card {
 	position: absolute;
@@ -1760,7 +1765,9 @@ body.dc-indicator-tint .doc-comment-card.is-resolved {
 	float: right;
 	clear: right;
 	width: calc(var(--dc-print-margin) - 0.25in);
-	margin: 0 calc(-1 * var(--dc-print-margin)) 0.4em 0.25in;
+	/* --dc-note-shift: set at print time to pull a crowded run of notes up
+	   toward its highlights (see print-stack.ts). */
+	margin: var(--dc-note-shift, 0px) calc(-1 * var(--dc-print-margin)) 0.3em 0.25in;
 	padding-left: 0.6em;
 	/* Same fill as the comment's highlight (per-comment color via .dc-color-*). */
 	border-left: 4px solid var(--dc-highlight-bg);
@@ -1774,7 +1781,12 @@ body.dc-indicator-tint .doc-comment-card.is-resolved {
 	text-indent: 0;
 	white-space: normal;
 	color: var(--text-muted);
-	break-inside: avoid;
+	/* Start beside the highlight even near the bottom of a page: a note that
+	   doesn't fit continues at the top of the next page's margin, instead of
+	   the whole note jumping to the next page away from its text. */
+	break-inside: auto;
+	orphans: 1;
+	widows: 1;
 }
 
 /* Fallback list for threads whose text couldn't be located in the export. */
@@ -1838,4 +1850,102 @@ body.dc-indicator-tint .doc-comment-card.is-resolved {
 
 .dc-print-note.is-resolved {
 	opacity: 0.6;
+}
+
+/* ── PDF style card view (body.dc-pdf-cards, see ui/pdf-pins.ts) ─────────────
+   Like a PDF reader: each comment is a small note icon in the margin, right
+   next to the text and level with its highlight, tinted with its color; the
+   card opens as a popover beside it, as a rounded card in the comment's color.
+   Collapsed cards are the same elements, shrunk to the icon. No transitions:
+   opening and closing should just appear, not move. `--dc-pin-left` (set by layoutPins)
+   is the text's right edge within the margin column. */
+body.dc-pdf-cards {
+	--dc-pin-size: 20px;
+	--dc-pin-width: 20px;
+	--dc-pin-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
+}
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card {
+	transition: none;
+}
+/* Pins sit left of the column's own start, next to the text — don't clip them. */
+body.dc-pdf-cards .doc-comment-margin {
+	overflow: visible;
+}
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card:not(.dc-pdf-open):not(.is-draft) {
+	left: var(--dc-pin-left, var(--dc-card-pad));
+	right: auto;
+	width: var(--dc-pin-width);
+	height: var(--dc-pin-size);
+	padding: 0;
+	overflow: hidden;
+	border-radius: 5px;
+	border: 1px solid color-mix(in srgb, var(--dc-highlight-border) 45%, transparent);
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 18%, var(--background-primary));
+	box-shadow: none;
+	transform: none;
+	opacity: 1;
+	cursor: pointer;
+	/* Visible in narrow panes too — there's no card to hover-reveal. */
+	visibility: visible;
+	pointer-events: auto;
+}
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card:not(.dc-pdf-open):not(.is-draft) > *,
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card:not(.dc-pdf-open):not(.is-draft)::before {
+	display: none;
+}
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card:not(.dc-pdf-open):not(.is-draft):hover,
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card:not(.dc-pdf-open).is-active {
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 32%, var(--background-primary));
+}
+/* The note icon: on the collapsed card, and on its copy beside an open card. */
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card:not(.is-draft)::after {
+	content: "";
+	position: absolute;
+	top: 3px;
+	left: 3px;
+	width: 12px;
+	height: 12px;
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 85%, var(--text-normal));
+	-webkit-mask: var(--dc-pin-icon) center / contain no-repeat;
+	mask: var(--dc-pin-icon) center / contain no-repeat;
+	pointer-events: none;
+}
+/* The popover: a rounded card in the comment's color, beside its icon. */
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card.dc-pdf-open {
+	left: calc(var(--dc-pin-left, var(--dc-card-pad)) + var(--dc-pin-width) + 6px);
+	right: auto;
+	width: calc(var(--dc-margin-width) - 2 * var(--dc-card-pad));
+	z-index: 5;
+	visibility: visible;
+	pointer-events: auto;
+	transform: none;
+	border-radius: var(--radius-m, 8px);
+	border: 1px solid color-mix(in srgb, var(--dc-highlight-border) 35%, transparent);
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 12%, var(--background-primary));
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+/* Its icon stays visible just left of it; clicking the icon closes the popover. */
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card.dc-pdf-open::after {
+	top: 4px;
+	left: calc(-1 * var(--dc-pin-width) - 6px);
+	-webkit-mask-size: 14px;
+	mask-size: 14px;
+	width: var(--dc-pin-width);
+	height: var(--dc-pin-size);
+	pointer-events: auto;
+	cursor: pointer;
+}
+/* The pill card is already in the comment's color; no separate line/dot. */
+body.dc-pdf-cards .doc-comment-margin .doc-comment-card.dc-pdf-open::before {
+	display: none;
+}
+/* Narrow pane: the pin is at the pane's right edge, so open the card to its left. */
+body.dc-pdf-cards .dc-narrow .doc-comment-margin .doc-comment-card.dc-pdf-open {
+	left: auto;
+	right: calc(100% - var(--dc-pin-left, 0px) + 6px);
+	width: min(calc(var(--dc-margin-width) - 2 * var(--dc-card-pad)), calc(var(--dc-pin-left, 0px) - 6px));
+}
+body.dc-pdf-cards .dc-narrow .doc-comment-margin .doc-comment-card.dc-pdf-open::after {
+	left: auto;
+	right: calc(-1 * var(--dc-pin-width) - 6px);
 }

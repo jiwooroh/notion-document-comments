@@ -6,6 +6,7 @@ import { isCodeComment } from "../format/code-anchor";
 import { findRenderedMatch } from "../reading/highlight";
 import { commentConfig } from "./config";
 import { getComments } from "./state";
+import { isHoverOnly } from "./active";
 
 type BrowserWindow = NonNullable<Document["defaultView"]>;
 
@@ -69,7 +70,7 @@ class HtmlHighlights {
 		if (update.docChanged) this.collect();
 		// Cursor moves alone don't change what's rendered; skip them. An empty
 		// transaction is how settings changes refresh the editor, so keep those.
-		const settingsRefresh = update.transactions.some((tr) => !tr.docChanged && !tr.selection);
+		const settingsRefresh = update.transactions.some((tr) => !tr.docChanged && !tr.selection && !isHoverOnly(tr));
 		if (update.docChanged || update.viewportChanged || update.geometryChanged || settingsRefresh) this.schedule();
 	}
 
