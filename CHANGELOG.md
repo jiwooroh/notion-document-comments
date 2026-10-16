@@ -5,6 +5,8 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.16
+
 - **Passes Obsidian's plugin review checks:** no regex lookbehind (unsupported on older iOS), no direct `element.style` writes or `document` globals, and no deprecated slider API.
 
 ## 0.2.15
