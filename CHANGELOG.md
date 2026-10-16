@@ -5,6 +5,8 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.17
+
 - Builds with the standard TypeScript compiler (`tsc`) instead of a TypeScript 7 preview alias, so a fresh clone installs and builds with common tooling.
 
 ## 0.2.16
