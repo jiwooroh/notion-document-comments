@@ -219,14 +219,14 @@ Use BRAT to install a pre-release build:
 1. Install **BRAT** from Community plugins.
 2. Enable **BRAT**.
 3. Run **BRAT: Add a beta plugin for testing**.
-4. Enter `jiwooroh/obsidian-document-comments`.
+4. Enter `jiwooroh/notion-document-comments`.
 5. Enable **Notion-style Comments** in Community plugins.
 
 BRAT installs the latest GitHub release and checks for updates.
 
 ### Manual install
 
-1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/jiwooroh/obsidian-document-comments/releases).
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/jiwooroh/notion-document-comments/releases).
 2. Copy the files to `<your-vault>/.obsidian/plugins/notion-style-comments/`.
 3. Restart or reload Obsidian.
 4. Enable **Notion-style Comments** in Community plugins.
@@ -236,7 +236,7 @@ Create the `notion-style-comments` directory if it does not exist.
 ### Build from source
 
 ```bash
-git clone https://github.com/jiwooroh/obsidian-document-comments
+git clone https://github.com/jiwooroh/notion-document-comments
 cd obsidian-document-comments
 npm install
 npm run build
