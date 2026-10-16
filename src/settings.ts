@@ -36,6 +36,11 @@ export type DocCommentsSettings = {
 	showMyProfile: boolean;
 	/** Show who wrote each comment and reply. */
 	showAuthor: boolean;
+	/** "default" cards, or "compact": just the comment text until a card is opened. */
+	cardView: string;
+	/** How a card shows its comment's color: "line" (left bar), "tint" (card
+	 *  filled with the color), "dot", or "none". */
+	cardIndicator: string;
 	/** Include comments as numbered footnotes when exporting a note to PDF. */
 	printComments: boolean;
 	/** Which palette the 9 colors use: "notion" or "apple". */
@@ -61,6 +66,8 @@ export const DEFAULT_SETTINGS: DocCommentsSettings = {
 	profilePhoto: "",
 	showMyProfile: true,
 	showAuthor: true,
+	cardView: "default",
+	cardIndicator: "line",
 	printComments: true,
 	colorScheme: DEFAULT_COLOR_SCHEME,
 	highlightColor: DEFAULT_HIGHLIGHT_COLOR,
@@ -122,6 +129,23 @@ const SETTING_META: ReadonlyArray<{
 		desc: "Show your name and profile photo on your own comments and replies.",
 		aliases: ["profile", "avatar", "my name", "photo"],
 		control: { type: "toggle" },
+	},
+	{
+		key: "cardView",
+		name: "Comment card view",
+		desc: "Default shows the author, date, and buttons on every card. Compact shows only the comment text; click a card to see its buttons. Also switchable from the status bar.",
+		aliases: ["compact", "card view", "comment view", "dense"],
+		control: { type: "dropdown", options: { default: "Default", compact: "Compact" } },
+	},
+	{
+		key: "cardIndicator",
+		name: "Card color indicator",
+		desc: "How each comment card shows the color of its highlight, so you can tell which card belongs to which text.",
+		aliases: ["stripe", "indicator", "card color", "dot", "line", "tint"],
+		control: {
+			type: "dropdown",
+			options: { line: "Line on the left", tint: "Colored card", dot: "Dot", none: "Nothing" },
+		},
 	},
 	{
 		key: "showAuthor",
@@ -432,6 +456,8 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		else if (key === "allowEmptyComments") this.plugin.settings.allowEmptyComments = Boolean(value);
 		else if (key === "printComments") this.plugin.settings.printComments = Boolean(value);
 		else if (key === "showAuthor") this.plugin.settings.showAuthor = Boolean(value);
+		else if (key === "cardView") this.plugin.settings.cardView = String(value);
+		else if (key === "cardIndicator") this.plugin.settings.cardIndicator = String(value);
 		else if (key === "showMyProfile") this.plugin.settings.showMyProfile = Boolean(value);
 		else if (key === "highlightColor") this.plugin.settings.highlightColor = String(value);
 		else if (key === "colorScheme") this.plugin.settings.colorScheme = String(value);
@@ -448,6 +474,7 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		if (key !== "author" && !colorKeys.includes(key)) this.plugin.refreshEditors();
 		if (key === "showComments") this.plugin.updateRibbon();
 		if (key === "showAuthor") this.plugin.applyAuthorVisibility();
+		if (key === "cardView" || key === "cardIndicator") this.plugin.applyCardView();
 		if (key === "showMyProfile") this.plugin.applyProfile();
 	}
 }

@@ -3,9 +3,11 @@ import type { Result } from "better-result";
 import { ParsedComment } from "../format/types";
 import { CardEntry, cardEntries, cardSignature, formatRelativeTime } from "./card-format";
 import { autogrowTextarea, setIconSafe } from "./text-format";
+import { emojiGroups, firstEmoji } from "./emoji-picker";
 import { ANNOTATION_STYLES, HIGHLIGHT_COLORS } from "./highlight-colors";
 
-const QUICK_EMOJI = ["👍", "❤️", "😄", "🎉", "😮", "👀", "🙏"];
+/** Always-visible reactions; "+" opens every emoji (see emoji-picker.ts). */
+const QUICK_EMOJI = ["👍", "📌", "⭐️", "👀"];
 
 // A margin card whose thread is taller than this can fold to a "more" preview
 // (Notion-style) — when the user folds it, or when it would crowd the next card
@@ -73,6 +75,8 @@ export class Card {
 	private crowded = false;
 	/** Last measured height of the in-flow "less" footer row (see heights()). */
 	private lessRowHeight = 22;
+	/** Cached top margin of the in-flow footer (see heights()). */
+	private footMargin: number | null = null;
 	/** Whether onDocMouseDown is currently registered — active while the reply
 	 *  composer is open, torn down when it closes. */
 	private outsideClickBound = false;
@@ -228,7 +232,11 @@ export class Card {
 		const thread = this.threadEl?.offsetHeight ?? 0;
 		const foot = this.footEl;
 		const footInFlow = foot && !foot.hasClass("dc-foot-overlay") && !foot.hasClass("is-empty");
-		const footRow = footInFlow ? foot.offsetHeight + parseFloat(getComputedStyle(foot).marginTop || "0") : 0;
+		// The foot's top margin is a fixed style value: read it once, not on every
+		// layout pass (getComputedStyle per card per scroll frame is costly).
+		if (footInFlow && this.footMargin === null)
+			this.footMargin = parseFloat(getComputedStyle(foot).marginTop || "0");
+		const footRow = footInFlow ? foot.offsetHeight + (this.footMargin ?? 0) : 0;
 		if (footInFlow && footRow > 0) this.lessRowHeight = footRow;
 		const base = this.el.offsetHeight - (this.clipEl?.offsetHeight ?? 0) - footRow;
 		const lessRow = this.overflows ? this.lessRowHeight : 0;
@@ -291,6 +299,10 @@ export class Card {
 		const c = this.comment;
 		this.el.empty();
 		this.el.toggleClass("is-resolved", c.status === "resolved");
+		// The left stripe takes the comment's highlight color (see styles.css), so
+		// a card visibly belongs to its highlight.
+		for (const cls of Array.from(this.el.classList)) if (cls.startsWith("dc-color-")) this.el.removeClass(cls);
+		if (c.color) this.el.addClass(`dc-color-${c.color}`);
 		this.el.toggleClass("is-open", this.open);
 
 		// A margin card floats right next to its highlighted text, so the anchor
@@ -798,7 +810,7 @@ export class Card {
 	private openReactionPicker(anchor: HTMLElement): void {
 		const doc = this.el.ownerDocument;
 		doc.querySelectorAll(".dc-pop, .dc-menu").forEach((p) => p.remove());
-		const pop = doc.body.createDiv("dc-pop");
+		const pop = doc.body.createDiv("dc-pop dc-pop--react");
 		// Self-removing outside-click handler. Picking an emoji tears it down too, so
 		// the document listener never outlives the popover.
 		const close = (ev: MouseEvent) => {
@@ -812,17 +824,59 @@ export class Card {
 			doc.removeEventListener("mousedown", close, true);
 			this.cb.toggleReaction(this.id, emoji);
 		};
-		for (const emoji of QUICK_EMOJI) {
-			const btn = pop.createEl("button", { cls: "dc-pop__emoji", text: emoji });
+		const emojiButton = (parent: HTMLElement, emoji: string): void => {
+			const btn = parent.createEl("button", { cls: "dc-pop__emoji", text: emoji, attr: { "aria-label": emoji } });
 			btn.addEventListener("click", (ev) => {
 				ev.stopPropagation();
 				pick(emoji);
 			});
-		}
-		// Right-align the popover with the button so it grows left, not off-page.
+		};
+		const quick = pop.createDiv("dc-pop__row");
+		for (const emoji of QUICK_EMOJI) emojiButton(quick, emoji);
+		const more = quick.createEl("button", {
+			cls: "dc-pop__emoji dc-pop__more",
+			text: "+",
+			attr: { "aria-label": "More emoji" },
+		});
+
+		// Right-align the popover with the button so it grows left, and keep it
+		// on screen (flip above the button when it would run off the bottom).
 		const rect = anchor.getBoundingClientRect();
-		const left = Math.max(8, rect.right - pop.offsetWidth);
-		pop.setCssStyles({ top: `${rect.bottom + 4}px`, left: `${left}px` });
+		const place = (): void => {
+			const win = doc.defaultView ?? window;
+			const left = Math.max(8, Math.min(rect.right - pop.offsetWidth, win.innerWidth - pop.offsetWidth - 8));
+			let top = rect.bottom + 4;
+			if (top + pop.offsetHeight > win.innerHeight - 8) top = Math.max(8, rect.top - 4 - pop.offsetHeight);
+			pop.setCssStyles({ top: `${top}px`, left: `${left}px` });
+		};
+		place();
+
+		// "+": every emoji, grouped, plus a box to type or paste any emoji (flags,
+		// skin tones, and sequences from the system emoji keyboard included).
+		more.addEventListener("click", (ev) => {
+			ev.stopPropagation();
+			if (pop.hasClass("is-expanded")) return;
+			pop.addClass("is-expanded");
+			const input = pop.createEl("input", {
+				cls: "dc-pop__input",
+				attr: { type: "text", placeholder: "Type or paste an emoji" },
+			});
+			input.addEventListener("keydown", (e) => {
+				e.stopPropagation();
+				if (e.key !== "Enter") return;
+				e.preventDefault();
+				const emoji = firstEmoji(input.value);
+				if (emoji) pick(emoji);
+			});
+			const grid = pop.createDiv("dc-pop__all");
+			for (const group of emojiGroups()) {
+				grid.createDiv({ cls: "dc-pop__group", text: group.label });
+				const cells = grid.createDiv("dc-pop__grid");
+				for (const emoji of group.emoji) emojiButton(cells, emoji);
+			}
+			place();
+			input.focus();
+		});
 		window.setTimeout(() => doc.addEventListener("mousedown", close, true), 0);
 	}
 

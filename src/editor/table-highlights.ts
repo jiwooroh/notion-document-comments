@@ -56,30 +56,53 @@ export const tableHighlightTargets = (doc: string, comments: ParsedComment[]): T
 	return targets;
 };
 
+/** A Markdown table row: a line starting with `|` (after optional indent/quote). */
+const hasTable = (doc: string): boolean => /^[ \t>]*\|/m.test(doc);
+
 class TableHighlights {
 	private observer: MutationObserver;
 	private scheduled = false;
 	private generation = 0;
 	private renderedQuotes = new Map<string, Promise<string>>();
 
+	/** The note has both a comment and a Markdown table — otherwise there's
+	 *  nothing to do, and this plugin stays idle (no observer, no scanning). */
+	private active = false;
+
 	constructor(private view: EditorView) {
 		// Use the view's own window's MutationObserver so this works in a pop-out
 		// window, whose globals differ from the main window's.
 		const Observer = view.dom.ownerDocument.defaultView?.MutationObserver ?? MutationObserver;
 		this.observer = new Observer(() => this.schedule());
-		this.observer.observe(view.dom, { childList: true, subtree: true, characterData: true });
-		this.schedule();
+		this.syncActive();
 	}
 
-	update(_update: ViewUpdate): void {
-		// Empty dispatches are used when settings change, so refresh on every update.
-		this.schedule();
+	update(update: ViewUpdate): void {
+		if (update.docChanged) this.syncActive();
+		if (!this.active) return;
+		// Skip cursor-only updates; empty dispatches are how settings changes refresh.
+		const settingsRefresh = update.transactions.some((tr) => !tr.docChanged && !tr.selection);
+		if (update.docChanged || update.viewportChanged || update.geometryChanged || settingsRefresh) this.schedule();
 	}
 
 	destroy(): void {
 		this.generation++;
 		this.observer.disconnect();
 		setViewRanges(this.view, { open: [], resolved: [] }, true);
+	}
+
+	private syncActive(): void {
+		const next = getComments(this.view.state).length > 0 && hasTable(this.view.state.doc.toString());
+		if (next === this.active) return;
+		this.active = next;
+		if (next) {
+			this.observer.observe(this.view.dom, { childList: true, subtree: true });
+			this.schedule();
+		} else {
+			this.observer.disconnect();
+			this.generation++;
+			setViewRanges(this.view, { open: [], resolved: [] });
+		}
 	}
 
 	private schedule(): void {

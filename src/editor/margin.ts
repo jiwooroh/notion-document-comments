@@ -1,6 +1,6 @@
 import { Notice, editorInfoField, setIcon } from "obsidian";
 import { Result } from "better-result";
-import { EditorView, PluginValue, ViewPlugin } from "@codemirror/view";
+import { EditorView, PluginValue, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { foldedRanges } from "@codemirror/language";
 import { ParsedComment } from "../format/types";
 import { anchorRange, hasMarginAnchor } from "../format/parse";
@@ -24,6 +24,7 @@ import {
 import { closestSpanId, spanSelector } from "../util/css";
 import { isNarrowForMargin } from "../util/narrow";
 import { crowdedCards, stackTops } from "../ui/stack";
+import { setActiveAnchor } from "./active";
 import { CARD_GAP, DRAFT_LIFT_PX, FLASH_MS } from "../ui/constants";
 import { buildDraftComposer } from "../ui/draft-composer";
 import { EmptySubmitAction } from "../ui/draft-behavior";
@@ -111,7 +112,15 @@ class MarginView implements PluginValue {
 		this.requestReposition();
 	}
 
-	update(): void {
+	update(update: ViewUpdate): void {
+		// A cursor move alone changes nothing in the margin; skip the reconcile and
+		// the layout pass (which forces the browser to measure) for those.
+		const relevant =
+			update.docChanged ||
+			update.viewportChanged ||
+			update.geometryChanged ||
+			update.transactions.some((tr) => tr.effects.length > 0 || (!tr.docChanged && !tr.selection));
+		if (!relevant) return;
 		// Reconcile (pure DOM — safe during the update cycle), then schedule the
 		// geometry-dependent reposition for the measure phase. coordsAtPos throws if
 		// called during an update/construction, so positioning MUST go through
@@ -443,8 +452,15 @@ class MarginView implements PluginValue {
 	}
 
 	private markHighlight(id: string, active: boolean): void {
-		const spans = this.view.contentDOM.querySelectorAll(spanSelector(id));
-		spans.forEach((s) => s.classList.toggle("is-active", active));
+		// Through an editor decoration (see editor/active.ts), not a DOM class the
+		// editor would drop on its next redraw. Deferred: hover events can land
+		// while CodeMirror is mid-update.
+		const value = active ? id : null;
+		queueMicrotask(() => {
+			if (this.destroyed) return;
+			if (!active && this.activeId !== null) return; // a newer hover already took over
+			this.view.dispatch({ effects: setActiveAnchor.of(value) });
+		});
 	}
 
 	/** Clicking a margin card flashes its highlighted text. No document scroll: the

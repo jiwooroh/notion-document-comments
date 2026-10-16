@@ -3,7 +3,6 @@ import { ParsedComment, TextRange } from "../format/types";
 import { anchorRange, parseComments } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { wrapAnchor, wrapFirstMatch } from "./highlight";
-import { layoutMarginNotes } from "./print-layout";
 
 export type PrintNotesDeps = {
 	app: App;
@@ -96,14 +95,10 @@ export const printNotesPostProcessor = async (
 	}
 	// Reserve the margin column only when something floats into it.
 	if (el.querySelector(".dc-print-note--margin")) el.classList.add("dc-print-has-notes");
+	// Notes stay floats in the text flow (inserted right before each highlight),
+	// so they move with their text across page breaks. Absolute positions
+	// measured before pagination drifted from the text on later pages.
 	await Promise.all(renders);
-
-	// Chromium switches to print media at the real page width right before
-	// printing; place the notes precisely then (see print-layout.ts).
-	const win = el.ownerDocument.defaultView;
-	win?.matchMedia("print").addEventListener("change", (e) => {
-		if (e.matches) layoutMarginNotes(el);
-	});
 };
 
 /**
@@ -122,10 +117,12 @@ const useLightCustomColors = (el: HTMLElement, lightColors: Record<string, strin
 /**
  * Where to insert a highlight's margin note. A float placed right before the
  * highlight lines up with its line — except inside a code block or table,
- * which clip floats (their own scroll/cell box), and callouts likewise —
- * so go before those instead.
+ * which clip floats (their own scroll/cell box), callouts likewise, and
+ * blockquotes, whose inner padding would pull the note over the text — so go
+ * before those instead.
  */
-const marginAnchor = (span: HTMLElement): HTMLElement => span.closest<HTMLElement>("pre, table, .callout") ?? span;
+const marginAnchor = (span: HTMLElement): HTMLElement =>
+	span.closest<HTMLElement>("pre, table, .callout, blockquote") ?? span;
 
 const createRef = (el: HTMLElement, n: number, extraCls: string): HTMLElement => {
 	const ref = el.createEl("sup", { cls: `dc-print-ref${extraCls}`, text: `${n}` });

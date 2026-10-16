@@ -52,7 +52,16 @@ class ReadingMargin {
 	private draftAnchor: HTMLElement | null = null;
 	private draftOutside: ((e: MouseEvent) => void) | null = null;
 	private cb: CardCallbacks;
-	private scrollHandler = () => this.position();
+	/** Scroll events can fire many times per frame; lay out at most once per frame. */
+	private positionQueued = false;
+	private scrollHandler = (): void => {
+		if (this.positionQueued) return;
+		this.positionQueued = true;
+		(this.readingView.ownerDocument.defaultView ?? window).requestAnimationFrame(() => {
+			this.positionQueued = false;
+			this.position();
+		});
+	};
 	private resizeObserver: ResizeObserver;
 	private animFrames = 0;
 	private animatingLoop = false;
@@ -105,9 +114,10 @@ class ReadingMargin {
 		if (!file) return;
 		let data: string;
 		try {
-			// Use the caller's just-written content if given; otherwise read fresh (NOT
-			// cachedRead, which can lag right after a write and show stale state).
-			data = text ?? (await this.deps.app.vault.read(file));
+			// Use the caller's just-written content if given (it's fresher than any
+			// cache right after a write); otherwise Obsidian's cached copy, which is
+			// up to date for every other refresh and avoids a disk read each time.
+			data = text ?? (await this.deps.app.vault.cachedRead(file));
 		} catch {
 			return; // file vanished or unreadable — keep the last render
 		}
