@@ -152,6 +152,9 @@ export const wrapAnchor = (
  *  (emphasis, highlight, strike, code ticks, escapes). Ignored on both sides of
  *  the formatting-tolerant match below. */
 const MARKUP_CHARS = /[*_=~`\\]/;
+/** Invisible characters that render as nothing: zero-width space (the editor's
+ *  hidden comment markers) and the BOM some pasted text carries. */
+const INVISIBLE = /[\u200b\ufeff]/;
 
 /** Source text of an anchor → roughly the text Reading view shows for it: other
  *  comments' markers and HTML tags dropped, links reduced to their label, and
@@ -174,6 +177,58 @@ const renderedText = (source: string): string =>
  * ignoring markup characters and collapsing whitespace on both sides — then
  * wrap each text node's part of the match in its own span.
  */
+/** One text node's slice of a rendered match. */
+export type TextPart = { node: Text; from: number; to: number };
+
+/** Normalize text for the formatting-tolerant match: drop markup characters and
+ *  invisible zero-width/BOM characters, collapse whitespace. */
+const normalizedNeedle = (source: string): string => {
+	let needle = "";
+	for (const ch of renderedText(source)) {
+		if (MARKUP_CHARS.test(ch) || INVISIBLE.test(ch)) continue;
+		if (/\s/.test(ch)) {
+			if (needle && !needle.endsWith(" ")) needle += " ";
+		} else needle += ch;
+	}
+	return needle.trim();
+};
+
+/**
+ * Find an anchor's source text in rendered DOM under `root`, tolerating
+ * formatting (see wrapRenderedMatch). Returns each text node's slice of the
+ * first match, or null. Shared by Reading view (which wraps the slices) and the
+ * editor's inline-HTML highlights (which paint them with CSS highlights).
+ */
+export const findRenderedMatch = (root: HTMLElement, source: string): TextPart[] | null => {
+	const needle = normalizedNeedle(source);
+	if (!needle) return null;
+	let hay = "";
+	const map: Array<{ node: Text; offset: number }> = [];
+	const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+	for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+		for (let i = 0; i < node.data.length; i++) {
+			const ch = node.data.charAt(i);
+			if (MARKUP_CHARS.test(ch) || INVISIBLE.test(ch)) continue;
+			if (/\s/.test(ch)) {
+				if (hay.endsWith(" ")) continue;
+				hay += " ";
+			} else hay += ch;
+			map.push({ node, offset: i });
+		}
+	}
+	const at = hay.indexOf(needle);
+	if (at < 0) return null;
+	const parts: TextPart[] = [];
+	for (let i = at; i < at + needle.length; i++) {
+		const m = map[i];
+		if (!m) continue;
+		const part = parts[parts.length - 1];
+		if (part && part.node === m.node) part.to = m.offset + 1;
+		else parts.push({ node: m.node, from: m.offset, to: m.offset + 1 });
+	}
+	return parts.length > 0 ? parts : null;
+};
+
 const wrapRenderedMatch = (
 	root: HTMLElement,
 	source: string,
@@ -183,46 +238,9 @@ const wrapRenderedMatch = (
 	color?: string,
 	style?: string,
 ): boolean => {
-	let needle = "";
-	for (const ch of renderedText(source)) {
-		if (MARKUP_CHARS.test(ch)) continue;
-		if (/\s/.test(ch)) {
-			if (needle && !needle.endsWith(" ")) needle += " ";
-		} else needle += ch;
-	}
-	needle = needle.trim();
-	if (!needle) return false;
-
+	const parts = findRenderedMatch(root, source);
+	if (!parts) return false;
 	const doc = root.ownerDocument;
-	let hay = "";
-	const map: Array<{ node: Text; offset: number }> = [];
-	const walker = doc.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-	for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
-		for (let i = 0; i < node.data.length; i++) {
-			const ch = node.data.charAt(i);
-			if (MARKUP_CHARS.test(ch)) continue;
-			if (/\s/.test(ch)) {
-				if (hay.endsWith(" ")) continue;
-				hay += " ";
-			} else hay += ch;
-			map.push({ node, offset: i });
-		}
-	}
-	const at = hay.indexOf(needle);
-	if (at < 0) return false;
-	const first = map[at];
-	const last = map[at + needle.length - 1];
-	if (!first || !last) return false;
-
-	// Each text node's slice of the match, in document order.
-	const parts: Array<{ node: Text; from: number; to: number }> = [];
-	for (let i = at; i < at + needle.length; i++) {
-		const m = map[i];
-		if (!m) continue;
-		const part = parts[parts.length - 1];
-		if (part && part.node === m.node) part.to = m.offset + 1;
-		else parts.push({ node: m.node, from: m.offset, to: m.offset + 1 });
-	}
 	let cls = resolved ? "doc-comment-span is-resolved" : "doc-comment-span";
 	if (color) cls += ` dc-color-${color}`;
 	if (style) cls += ` dc-style-${style}`;

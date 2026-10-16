@@ -5,6 +5,23 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.13
+
+- **Compact card view:** a switch in the status bar at the bottom of Obsidian (also in settings and as the **Toggle compact comment cards** command) between **Default** and **Compact**. Compact cards show only the comment text; click a card to see its author, date, buttons, and reactions.
+- `---` inside a comment is now a thin divider with normal spacing instead of a large gap.
+- **PDF export:** comments now stay next to their text on every page. They were placed by position before the PDF was split into pages, so they drifted on later pages; they now flow with the text. Highlights inside blockquotes get their note at the start of the blockquote so it doesn't overlap the text.
+- **Softer hover:** hovering a highlight or its card tints it only slightly darker.
+- Fixed highlights not darkening on hover in the editing view (and for comments set to Underline or a per-comment style).
+- **Much lighter on Obsidian overall:**
+  - Reading view no longer refreshes comments every time Obsidian renders any Markdown (hover previews, embeds, canvas) or any file in the vault changes (sync tools do this constantly) — only for notes with comments that are open in Reading view, and it reads them from Obsidian's cache instead of from disk.
+  - Table highlights stay idle unless the note has both comments and a table; before, they re-scanned the whole note on every keystroke, cursor move, and screen change in every note.
+  - The comment margin and formatted-text highlights skip cursor-only changes, and card layout no longer re-measures styles on every scroll frame. Reading view lays out cards at most once per frame while scrolling.
+- **Reaction picker:** quick reactions are now 👍 📌 ⭐️ 👀, and **+** opens every emoji (grouped by category) plus a box to type or paste any emoji, including flags, skin tones, and combined emoji.
+- **Highlights show on formatted text in the editor:** when the commented text contains inline HTML — `<span class=…>`, `<mark>`, `<strong>`, `<u>`, and so on — Live Preview draws that HTML over the text, which hid the highlight. Those parts are now highlighted too, in the comment's color and style. Comments that lost a marker are highlighted in the editor as well.
+- **Card color indicator:** each comment card shows the color of its highlight, in the margin and in the sidebar, so you can tell which card belongs to which text. Choose **Line on the left** (default), **Colored card**, **Dot**, or **Nothing** in settings (**Card color indicator**).
+- **Sidebar color filter:** under Open / Resolved / All, pick one or more colors to see only those comments, or **All** to see every color. Each chip shows how many comments use that color.
+- Fixed a narrow window or pane scrolling sideways — text cut off on the left with a blank strip on the right. The note title and properties kept their full width while the text column narrowed for the comment margin.
+
 ## 0.2.12
 
 ![Comment cards beside the note on iPad](https://raw.githubusercontent.com/jiwooroh/obsidian-document-comments/main/docs/screenshots/ipad-0.2.12.webp)

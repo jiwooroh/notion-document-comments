@@ -20,6 +20,7 @@ import { applyCommentEdit, editorViewForFile } from "../editor/routing";
 import { spanSelector } from "../util/css";
 import { CARD_FLASH_MS, FLASH_MS } from "../ui/constants";
 import { centeredScrollTop } from "./scroll";
+import { colorLabel, colorSwatch, colorsPresent, filterByColors } from "./color-filter";
 
 export const COMMENTS_VIEW_TYPE = "notion-style-comments-sidebar";
 
@@ -54,6 +55,9 @@ export class CommentsSidebarView extends ItemView {
 	private scheduleRefresh: Debouncer<[], void>;
 	private filter: FilterMode = "open";
 	private tabs: Array<{ mode: FilterMode; el: HTMLElement; countEl: HTMLElement }> = [];
+	/** Colors to show; empty = all colors. */
+	private colorFilter = new Set<string>();
+	private colorsEl!: HTMLElement;
 	private revealFrame: number | null = null;
 
 	constructor(
@@ -119,6 +123,9 @@ export class CommentsSidebarView extends ItemView {
 			return { mode, el, countEl };
 		});
 
+		// Color filter: "All" plus one chip per color used in the note.
+		this.colorsEl = header.createDiv("dc-sidebar__colors");
+
 		this.listEl = root.createDiv("dc-sidebar");
 		this.emptyEl = root.createDiv("dc-sidebar__empty");
 
@@ -153,6 +160,7 @@ export class CommentsSidebarView extends ItemView {
 	 *  margin card escapes here. Switches to "All" so the thread is always shown. */
 	async revealComment(id: string): Promise<void> {
 		this.filter = "all";
+		this.colorFilter.clear();
 		await this.refresh();
 		const card = this.cards.get(id);
 		if (!card) return;
@@ -178,6 +186,37 @@ export class CommentsSidebarView extends ItemView {
 		void this.refresh();
 	}
 
+	/** Toggle one color in the filter; `null` ("All") clears it. */
+	private toggleColor(key: string | null): void {
+		if (key === null) this.colorFilter.clear();
+		else if (this.colorFilter.has(key)) this.colorFilter.delete(key);
+		else this.colorFilter.add(key);
+		void this.refresh();
+	}
+
+	private paintColors(comments: ParsedComment[]): void {
+		const present = colorsPresent(comments);
+		this.colorsEl.empty();
+		// One color (or none) — nothing to filter by.
+		this.colorsEl.toggleClass("is-hidden", present.length < 2);
+		if (present.length < 2) return;
+		const chip = (label: string, active: boolean, onClick: () => void): HTMLElement => {
+			const el = this.colorsEl.createEl("button", { cls: "dc-sidebar__color", attr: { "aria-label": label } });
+			el.toggleClass("is-active", active);
+			el.setAttribute("aria-pressed", active ? "true" : "false");
+			el.addEventListener("click", onClick);
+			return el;
+		};
+		const all = chip("All colors", this.colorFilter.size === 0, () => this.toggleColor(null));
+		all.addClass("dc-sidebar__color--all");
+		all.setText("All");
+		for (const { key, count } of present) {
+			const el = chip(`${colorLabel(key)} (${count})`, this.colorFilter.has(key), () => this.toggleColor(key));
+			el.createSpan({ cls: "dc-sidebar__swatch" }).style.setProperty("--dc-swatch", colorSwatch(key));
+			el.createSpan({ cls: "dc-sidebar__color-count", text: String(count) });
+		}
+	}
+
 	private async refresh(text?: string): Promise<void> {
 		this.file = this.resolveFile();
 
@@ -186,6 +225,7 @@ export class CommentsSidebarView extends ItemView {
 			this.renderComments([]);
 			this.titleEl.setText("Comments");
 			this.paintTabs({ open: 0, resolved: 0, all: 0 });
+			this.paintColors([]);
 			this.setEmpty("Open a note to see its comments.");
 			return;
 		}
@@ -197,24 +237,38 @@ export class CommentsSidebarView extends ItemView {
 			this.renderComments([]);
 			this.titleEl.setText(file.basename);
 			this.paintTabs({ open: 0, resolved: 0, all: 0 });
+			this.paintColors([]);
 			this.setEmpty("Couldn't read this note.");
 			return;
 		}
 
-		const all = parseComments(data).filter(hasCommentCard);
+		const every = parseComments(data).filter(hasCommentCard);
+		const byStatus = (list: ParsedComment[]) =>
+			this.filter === "open"
+				? list.filter((c) => c.status !== "resolved")
+				: this.filter === "resolved"
+					? list.filter((c) => c.status === "resolved")
+					: list;
+		// Forget colors the note no longer uses, so the filter can't hide everything.
+		const used = new Set(colorsPresent(every).map((p) => p.key));
+		for (const key of Array.from(this.colorFilter)) if (!used.has(key)) this.colorFilter.delete(key);
+		// Chips count what the status tab shows; tabs count what the colors allow.
+		this.paintColors(byStatus(every));
+		const all = filterByColors(every, this.colorFilter);
 		const open = all.filter((c) => c.status !== "resolved");
 		const resolved = all.filter((c) => c.status === "resolved");
-		const shown = this.filter === "open" ? open : this.filter === "resolved" ? resolved : all;
+		const shown = byStatus(all);
 
 		this.titleEl.setText(file.basename);
 		this.paintTabs({ open: open.length, resolved: resolved.length, all: all.length });
 		this.renderComments(shown);
-		this.setEmpty(this.emptyMessage(all.length, shown.length));
+		this.setEmpty(this.emptyMessage(every.length, shown.length));
 	}
 
 	private emptyMessage(total: number, shown: number): string | null {
 		if (shown > 0) return null;
 		if (total === 0) return "No comments in this note yet.";
+		if (this.colorFilter.size > 0) return "No comments in the selected colors.";
 		if (this.filter === "open") return "No open comments.";
 		if (this.filter === "resolved") return "No resolved comments.";
 		return "Nothing to show.";

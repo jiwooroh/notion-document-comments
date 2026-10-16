@@ -175,7 +175,7 @@ body {
 	   doesn't expose those for its own highlight. */
 	--dc-hl-theme: var(--text-highlight-bg);
 	--dc-hl-theme-border: color-mix(in srgb, var(--text-highlight-bg), var(--text-normal) 45%);
-	--dc-hl-theme-active: color-mix(in srgb, var(--text-highlight-bg), var(--text-normal) 20%);
+	--dc-hl-theme-active: color-mix(in srgb, var(--text-highlight-bg), var(--text-normal) 8%);
 	--dc-hl-gray: color-mix(in srgb, var(--dc-hl-gray-pale), var(--dc-hl-gray-border) var(--dc-highlight-intensity));
 	--dc-hl-brown: color-mix(in srgb, var(--dc-hl-brown-pale), var(--dc-hl-brown-border) var(--dc-highlight-intensity));
 	--dc-hl-orange: color-mix(in srgb, var(--dc-hl-orange-pale), var(--dc-hl-orange-border) var(--dc-highlight-intensity));
@@ -187,15 +187,15 @@ body {
 	--dc-hl-red: color-mix(in srgb, var(--dc-hl-red-pale), var(--dc-hl-red-border) var(--dc-highlight-intensity));
 	/* A stronger tone for the hover / flash states, mixed from the same two
 	   anchors so it can't drift out of sync with them. */
-	--dc-hl-gray-active: color-mix(in srgb, var(--dc-hl-gray), var(--dc-hl-gray-border) 35%);
-	--dc-hl-brown-active: color-mix(in srgb, var(--dc-hl-brown), var(--dc-hl-brown-border) 35%);
-	--dc-hl-orange-active: color-mix(in srgb, var(--dc-hl-orange), var(--dc-hl-orange-border) 35%);
-	--dc-hl-yellow-active: color-mix(in srgb, var(--dc-hl-yellow), var(--dc-hl-yellow-border) 35%);
-	--dc-hl-green-active: color-mix(in srgb, var(--dc-hl-green), var(--dc-hl-green-border) 35%);
-	--dc-hl-blue-active: color-mix(in srgb, var(--dc-hl-blue), var(--dc-hl-blue-border) 35%);
-	--dc-hl-purple-active: color-mix(in srgb, var(--dc-hl-purple), var(--dc-hl-purple-border) 35%);
-	--dc-hl-pink-active: color-mix(in srgb, var(--dc-hl-pink), var(--dc-hl-pink-border) 35%);
-	--dc-hl-red-active: color-mix(in srgb, var(--dc-hl-red), var(--dc-hl-red-border) 35%);
+	--dc-hl-gray-active: color-mix(in srgb, var(--dc-hl-gray), var(--dc-hl-gray-border) 12%);
+	--dc-hl-brown-active: color-mix(in srgb, var(--dc-hl-brown), var(--dc-hl-brown-border) 12%);
+	--dc-hl-orange-active: color-mix(in srgb, var(--dc-hl-orange), var(--dc-hl-orange-border) 12%);
+	--dc-hl-yellow-active: color-mix(in srgb, var(--dc-hl-yellow), var(--dc-hl-yellow-border) 12%);
+	--dc-hl-green-active: color-mix(in srgb, var(--dc-hl-green), var(--dc-hl-green-border) 12%);
+	--dc-hl-blue-active: color-mix(in srgb, var(--dc-hl-blue), var(--dc-hl-blue-border) 12%);
+	--dc-hl-purple-active: color-mix(in srgb, var(--dc-hl-purple), var(--dc-hl-purple-border) 12%);
+	--dc-hl-pink-active: color-mix(in srgb, var(--dc-hl-pink), var(--dc-hl-pink-border) 12%);
+	--dc-hl-red-active: color-mix(in srgb, var(--dc-hl-red), var(--dc-hl-red-border) 12%);
 }
 
 /* Layout is keyed on a `dc-has` class set on the editor / reading-view container.
@@ -240,6 +240,18 @@ body {
 	max-width: var(--dc-sizer-width);
 	margin-left: var(--dc-sizer-ml);
 	margin-right: auto;
+}
+/* Some blocks inside the sizer carry their own fixed width — the inline title
+   (and Iconize's wrapper around it) is sized to --file-line-width, and the
+   properties block a bit wider. Once the sizer is narrower than that (a small
+   window or pane), they stuck out, the pane scrolled sideways, and the text was
+   cut off on the left with a blank strip on the right. Keep them in the sizer. */
+.cm-editor.dc-has .cm-sizer > *,
+.cm-editor.dc-has .cm-sizer > * > *,
+.markdown-reading-view.dc-has .markdown-preview-sizer > *,
+.markdown-reading-view.dc-has .markdown-preview-sizer > * > * {
+	max-width: 100%;
+	box-sizing: border-box;
 }
 
 /* The highlighted span in the text: fill only by default. The underline slot is
@@ -289,61 +301,71 @@ body .doc-comment-span.dc-style-both {
    properties themselves — is-active / is-resolved below still take effect on
    top, unchanged. */
 .doc-comment-span.dc-color-theme,
-.dc-print-note.dc-color-theme {
+.dc-print-note.dc-color-theme,
+.doc-comment-card.dc-color-theme {
 	--dc-highlight-bg: var(--dc-hl-theme);
 	--dc-highlight-bg-active: var(--dc-hl-theme-active);
 	--dc-highlight-border: var(--dc-hl-theme-border);
 }
 .doc-comment-span.dc-color-yellow,
-.dc-print-note.dc-color-yellow {
+.dc-print-note.dc-color-yellow,
+.doc-comment-card.dc-color-yellow {
 	--dc-highlight-bg: var(--dc-hl-yellow);
 	--dc-highlight-bg-active: var(--dc-hl-yellow-active);
 	--dc-highlight-border: var(--dc-hl-yellow-border);
 }
 .doc-comment-span.dc-color-green,
-.dc-print-note.dc-color-green {
+.dc-print-note.dc-color-green,
+.doc-comment-card.dc-color-green {
 	--dc-highlight-bg: var(--dc-hl-green);
 	--dc-highlight-bg-active: var(--dc-hl-green-active);
 	--dc-highlight-border: var(--dc-hl-green-border);
 }
 .doc-comment-span.dc-color-blue,
-.dc-print-note.dc-color-blue {
+.dc-print-note.dc-color-blue,
+.doc-comment-card.dc-color-blue {
 	--dc-highlight-bg: var(--dc-hl-blue);
 	--dc-highlight-bg-active: var(--dc-hl-blue-active);
 	--dc-highlight-border: var(--dc-hl-blue-border);
 }
 .doc-comment-span.dc-color-purple,
-.dc-print-note.dc-color-purple {
+.dc-print-note.dc-color-purple,
+.doc-comment-card.dc-color-purple {
 	--dc-highlight-bg: var(--dc-hl-purple);
 	--dc-highlight-bg-active: var(--dc-hl-purple-active);
 	--dc-highlight-border: var(--dc-hl-purple-border);
 }
 .doc-comment-span.dc-color-pink,
-.dc-print-note.dc-color-pink {
+.dc-print-note.dc-color-pink,
+.doc-comment-card.dc-color-pink {
 	--dc-highlight-bg: var(--dc-hl-pink);
 	--dc-highlight-bg-active: var(--dc-hl-pink-active);
 	--dc-highlight-border: var(--dc-hl-pink-border);
 }
 .doc-comment-span.dc-color-red,
-.dc-print-note.dc-color-red {
+.dc-print-note.dc-color-red,
+.doc-comment-card.dc-color-red {
 	--dc-highlight-bg: var(--dc-hl-red);
 	--dc-highlight-bg-active: var(--dc-hl-red-active);
 	--dc-highlight-border: var(--dc-hl-red-border);
 }
 .doc-comment-span.dc-color-orange,
-.dc-print-note.dc-color-orange {
+.dc-print-note.dc-color-orange,
+.doc-comment-card.dc-color-orange {
 	--dc-highlight-bg: var(--dc-hl-orange);
 	--dc-highlight-bg-active: var(--dc-hl-orange-active);
 	--dc-highlight-border: var(--dc-hl-orange-border);
 }
 .doc-comment-span.dc-color-brown,
-.dc-print-note.dc-color-brown {
+.dc-print-note.dc-color-brown,
+.doc-comment-card.dc-color-brown {
 	--dc-highlight-bg: var(--dc-hl-brown);
 	--dc-highlight-bg-active: var(--dc-hl-brown-active);
 	--dc-highlight-border: var(--dc-hl-brown-border);
 }
 .doc-comment-span.dc-color-gray,
-.dc-print-note.dc-color-gray {
+.dc-print-note.dc-color-gray,
+.doc-comment-card.dc-color-gray {
 	--dc-highlight-bg: var(--dc-hl-gray);
 	--dc-highlight-bg-active: var(--dc-hl-gray-active);
 	--dc-highlight-border: var(--dc-hl-gray-border);
@@ -396,8 +418,17 @@ body .doc-comment-span.dc-style-both {
 	cursor: text;
 	pointer-events: none;
 }
-.doc-comment-span.is-active {
+/* Hover/active tint. `body` + placement after the annotation-style rules keeps
+   it winning over Underline / per-comment style backgrounds. Reading view uses
+   .is-active; the editor uses the .dc-active-anchor decoration (editor/active.ts). */
+body .doc-comment-span.is-active,
+body .dc-active-anchor .doc-comment-span {
 	background-color: var(--dc-highlight-bg-active);
+}
+/* Editor: the hover mark sits inside the highlight, so it only adds a light
+   tint on top instead of stacking a second full-strength fill. */
+body .doc-comment-span .dc-active-anchor {
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 10%, transparent);
 }
 .doc-comment-span.is-resolved {
 	background-color: transparent;
@@ -420,6 +451,168 @@ body.dc-annotation-both ::highlight(notion-style-comments-table) {
 	background-color: hsla(0, 0%, 50%, 0.12);
 	text-decoration: underline;
 }
+/* Commented text inside inline HTML (`<span>`, `<mark>`, `<strong>`, …) in Live
+   Preview: rendered as a widget over the source, so the normal mark can't show.
+   editor/html-highlights.ts paints those parts with CSS Custom Highlights named
+   nsc-html-<color>-<style>, mirroring .doc-comment-span's color and style. */
+::highlight(nsc-html-default-default),
+::highlight(nsc-html-default-highlight),
+::highlight(nsc-html-default-both) {
+	background-color: var(--dc-highlight-bg);
+}
+::highlight(nsc-html-default-underline),
+::highlight(nsc-html-default-both),
+body.dc-annotation-underline ::highlight(nsc-html-default-default),
+body.dc-annotation-both ::highlight(nsc-html-default-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-highlight-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-default-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-theme-default),
+::highlight(nsc-html-theme-highlight),
+::highlight(nsc-html-theme-both) {
+	background-color: var(--dc-hl-theme);
+}
+::highlight(nsc-html-theme-underline),
+::highlight(nsc-html-theme-both),
+body.dc-annotation-underline ::highlight(nsc-html-theme-default),
+body.dc-annotation-both ::highlight(nsc-html-theme-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-theme-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-theme-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-yellow-default),
+::highlight(nsc-html-yellow-highlight),
+::highlight(nsc-html-yellow-both) {
+	background-color: var(--dc-hl-yellow);
+}
+::highlight(nsc-html-yellow-underline),
+::highlight(nsc-html-yellow-both),
+body.dc-annotation-underline ::highlight(nsc-html-yellow-default),
+body.dc-annotation-both ::highlight(nsc-html-yellow-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-yellow-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-yellow-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-green-default),
+::highlight(nsc-html-green-highlight),
+::highlight(nsc-html-green-both) {
+	background-color: var(--dc-hl-green);
+}
+::highlight(nsc-html-green-underline),
+::highlight(nsc-html-green-both),
+body.dc-annotation-underline ::highlight(nsc-html-green-default),
+body.dc-annotation-both ::highlight(nsc-html-green-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-green-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-green-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-blue-default),
+::highlight(nsc-html-blue-highlight),
+::highlight(nsc-html-blue-both) {
+	background-color: var(--dc-hl-blue);
+}
+::highlight(nsc-html-blue-underline),
+::highlight(nsc-html-blue-both),
+body.dc-annotation-underline ::highlight(nsc-html-blue-default),
+body.dc-annotation-both ::highlight(nsc-html-blue-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-blue-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-blue-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-purple-default),
+::highlight(nsc-html-purple-highlight),
+::highlight(nsc-html-purple-both) {
+	background-color: var(--dc-hl-purple);
+}
+::highlight(nsc-html-purple-underline),
+::highlight(nsc-html-purple-both),
+body.dc-annotation-underline ::highlight(nsc-html-purple-default),
+body.dc-annotation-both ::highlight(nsc-html-purple-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-purple-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-purple-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-pink-default),
+::highlight(nsc-html-pink-highlight),
+::highlight(nsc-html-pink-both) {
+	background-color: var(--dc-hl-pink);
+}
+::highlight(nsc-html-pink-underline),
+::highlight(nsc-html-pink-both),
+body.dc-annotation-underline ::highlight(nsc-html-pink-default),
+body.dc-annotation-both ::highlight(nsc-html-pink-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-pink-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-pink-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-red-default),
+::highlight(nsc-html-red-highlight),
+::highlight(nsc-html-red-both) {
+	background-color: var(--dc-hl-red);
+}
+::highlight(nsc-html-red-underline),
+::highlight(nsc-html-red-both),
+body.dc-annotation-underline ::highlight(nsc-html-red-default),
+body.dc-annotation-both ::highlight(nsc-html-red-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-red-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-red-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-orange-default),
+::highlight(nsc-html-orange-highlight),
+::highlight(nsc-html-orange-both) {
+	background-color: var(--dc-hl-orange);
+}
+::highlight(nsc-html-orange-underline),
+::highlight(nsc-html-orange-both),
+body.dc-annotation-underline ::highlight(nsc-html-orange-default),
+body.dc-annotation-both ::highlight(nsc-html-orange-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-orange-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-orange-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-brown-default),
+::highlight(nsc-html-brown-highlight),
+::highlight(nsc-html-brown-both) {
+	background-color: var(--dc-hl-brown);
+}
+::highlight(nsc-html-brown-underline),
+::highlight(nsc-html-brown-both),
+body.dc-annotation-underline ::highlight(nsc-html-brown-default),
+body.dc-annotation-both ::highlight(nsc-html-brown-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-brown-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-brown-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-gray-default),
+::highlight(nsc-html-gray-highlight),
+::highlight(nsc-html-gray-both) {
+	background-color: var(--dc-hl-gray);
+}
+::highlight(nsc-html-gray-underline),
+::highlight(nsc-html-gray-both),
+body.dc-annotation-underline ::highlight(nsc-html-gray-default),
+body.dc-annotation-both ::highlight(nsc-html-gray-default) {
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-hl-gray-border) 55%, transparent);
+}
+body.dc-annotation-underline ::highlight(nsc-html-gray-default) {
+	background-color: transparent;
+}
+::highlight(nsc-html-resolved) {
+	text-decoration: underline 1px dashed var(--text-faint);
+}
+
 /* A selected no-space marker needs distinct caret endpoints, but the raw HTML
    comment must never become visible or take layout width (especially in tables). */
 .dc-comment-marker {
@@ -753,6 +946,19 @@ body.dc-hide-my-profile .dc-entry.is-mine .dc-entry__author {
 .dc-avatar.dc-avatar--preview.is-empty {
 	display: none;
 }
+/* Compact card view (status bar / settings): margin cards show only the comment
+   text. Opening a card (click) brings back the header, buttons, and reactions. */
+body.dc-compact-cards .doc-comment-margin .doc-comment-card:not(.is-open) .dc-entry__head,
+body.dc-compact-cards .doc-comment-margin .doc-comment-card:not(.is-open) .dc-entry__reactions {
+	display: none;
+}
+body.dc-compact-cards .doc-comment-margin .doc-comment-card:not(.is-open) {
+	padding-top: 6px;
+	padding-bottom: 6px;
+}
+body.dc-compact-cards .doc-comment-margin .doc-comment-card:not(.is-open) .dc-thread {
+	gap: 6px;
+}
 /* "Show author names" off (body class set by applyAuthorVisibility in main.ts). */
 body.dc-hide-author .dc-entry__author {
 	display: none;
@@ -766,6 +972,15 @@ body.dc-hide-author .dc-entry__author {
 	overflow-wrap: anywhere;
 	color: var(--text-normal);
 	cursor: text;
+}
+/* `---` in a comment: a thin divider with normal line spacing, not the note's
+   big section break (Reading view's hr margins were huge inside a card). */
+.dc-entry__text hr,
+.dc-print-note__text hr {
+	margin: 4px 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+	height: 0;
 }
 .dc-entry__text--empty {
 	display: block;
@@ -1058,6 +1273,40 @@ body.dc-hide-author .dc-entry__author {
 .dc-pop__emoji:hover {
 	background-color: var(--background-modifier-hover);
 }
+/* Reaction picker: quick row, then (after "+") a type-in box and every emoji. */
+.dc-pop.dc-pop--react {
+	flex-direction: column;
+}
+.dc-pop__row {
+	display: flex;
+	gap: 2px;
+}
+.dc-pop__more {
+	color: var(--text-muted);
+	font-size: 18px;
+}
+.dc-pop.is-expanded {
+	width: 300px;
+	gap: 6px;
+}
+.dc-pop__input {
+	width: 100%;
+	font-size: var(--font-ui-small);
+}
+.dc-pop__all {
+	max-height: 260px;
+	overflow-y: auto;
+}
+.dc-pop__group {
+	margin: 6px 2px 2px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+.dc-pop__grid {
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	gap: 2px;
+}
 
 /* ── Color swatch popover (the "Change color" menu item) ──────────────────
    Same popover shell as the emoji picker (.dc-pop), just circular color
@@ -1314,6 +1563,50 @@ body.dc-hide-author .dc-entry__author {
 	color: var(--text-muted);
 }
 
+/* Color filter chips under the status tabs: "All", then a swatch per color used
+   in the note. Several colors can be picked at once. */
+.dc-sidebar__colors {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 6px;
+}
+.dc-sidebar__colors.is-hidden {
+	display: none;
+}
+.dc-sidebar__color {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 22px;
+	padding: 0 7px;
+	border-radius: 11px;
+	border: 1px solid var(--background-modifier-border);
+	background: transparent;
+	box-shadow: none;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	cursor: pointer;
+}
+.dc-sidebar__color:hover {
+	background-color: var(--background-modifier-hover);
+}
+.dc-sidebar__color.is-active {
+	border-color: var(--interactive-accent);
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+.dc-sidebar__swatch {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%;
+	background-color: var(--dc-swatch);
+}
+.dc-sidebar__color-count {
+	font-variant-numeric: tabular-nums;
+	color: var(--text-faint);
+}
+
 .dc-sidebar {
 	display: flex;
 	flex-direction: column;
@@ -1330,7 +1623,8 @@ body.dc-hide-author .dc-entry__author {
    boxed-card treatment (needed in the margin to visually separate a card
    from the page behind it) would just look noisy stacked edge-to-edge. */
 .dc-sidebar .doc-comment-card {
-	position: static;
+	/* Relative (not static) so the color indicator can sit on its left edge. */
+	position: relative;
 	left: auto;
 	right: auto;
 	width: 100%;
@@ -1348,6 +1642,58 @@ body.dc-hide-author .dc-entry__author {
 .dc-sidebar .doc-comment-card.is-open {
 	background-color: var(--background-modifier-hover);
 	transform: none;
+}
+
+/* Card color indicator (setting "Card color indicator"): shows the color of the
+   comment's highlight on its card — margin and sidebar alike — so you can tell
+   which card belongs to which text. `--dc-highlight-border` is the comment's own
+   color (see the .dc-color-* rules) or the default highlight color. */
+body.dc-indicator-line .doc-comment-card::before,
+body.dc-indicator-dot .doc-comment-card::before {
+	content: "";
+	position: absolute;
+	pointer-events: none;
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 80%, transparent);
+}
+body.dc-indicator-line .doc-comment-card::before {
+	left: 3px;
+	top: 8px;
+	bottom: 8px;
+	width: 3px;
+	border-radius: 2px;
+}
+body.dc-indicator-dot .doc-comment-card::before {
+	left: 3px;
+	top: 15px;
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+}
+body.dc-indicator-line .doc-comment-card.is-resolved::before,
+body.dc-indicator-dot .doc-comment-card.is-resolved::before {
+	background-color: var(--background-modifier-border);
+}
+/* Sidebar rows have almost no side padding; make room for the line/dot. */
+body.dc-indicator-line .dc-sidebar .doc-comment-card,
+body.dc-indicator-dot .dc-sidebar .doc-comment-card {
+	padding-left: 14px;
+}
+/* Colored card: a light wash of the comment's color, a touch stronger on hover. */
+body.dc-indicator-tint .doc-comment-card:not(.is-draft) {
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 9%, var(--background-primary));
+	border-color: color-mix(in srgb, var(--dc-highlight-border) 22%, var(--background-modifier-border));
+}
+body.dc-indicator-tint .doc-comment-card:not(.is-draft):hover,
+body.dc-indicator-tint .doc-comment-card.is-active,
+body.dc-indicator-tint .doc-comment-card.is-open {
+	background-color: color-mix(in srgb, var(--dc-highlight-border) 15%, var(--background-primary));
+}
+body.dc-indicator-tint .dc-sidebar .doc-comment-card:not(.is-draft) {
+	border-color: transparent;
+	border-bottom-color: var(--background-modifier-border);
+}
+body.dc-indicator-tint .doc-comment-card.is-resolved {
+	background-color: var(--background-primary);
 }
 
 .dc-sidebar__empty {
@@ -1429,19 +1775,6 @@ body.dc-hide-author .dc-entry__author {
 	white-space: normal;
 	color: var(--text-muted);
 	break-inside: avoid;
-}
-
-/* Print-time layout (print-layout.ts): notes leave the text flow and sit at
-   measured positions in the margin column, centered on crowded highlights. */
-.dc-print-has-notes.dc-print-laid-out {
-	position: relative;
-}
-
-.dc-print-laid-out .dc-print-note--margin {
-	position: absolute;
-	right: 0;
-	float: none;
-	margin: 0;
 }
 
 /* Fallback list for threads whose text couldn't be located in the export. */

@@ -3,6 +3,7 @@ import {
 	Editor,
 	MarkdownRenderer,
 	MarkdownView,
+	Menu,
 	Notice,
 	Platform,
 	Plugin,
@@ -28,6 +29,8 @@ import { COMMENTS_VIEW_TYPE, CommentsSidebarView, SidebarDeps } from "./ui/sideb
 import { CommentModal } from "./ui/comment-modal";
 import { DEFAULT_SETTINGS, DocCommentsSettings, DocCommentsSettingTab } from "./settings";
 import { tableHighlightPlugin } from "./editor/table-highlights";
+import { htmlHighlightPlugin } from "./editor/html-highlights";
+import { activeAnchorField } from "./editor/active";
 import {
 	applyAnnotationStyle,
 	applyColorScheme,
@@ -46,6 +49,7 @@ export default class DocCommentsPlugin extends Plugin {
 	/** True while the "All discussions" sidebar panel is mounted. */
 	private sidebarOpen = false;
 	private textToolbar: TextFormatToolbar | null = null;
+	private cardViewStatus: HTMLElement | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -56,12 +60,15 @@ export default class DocCommentsPlugin extends Plugin {
 		applyAnnotationStyle(this.settings.annotationStyle);
 		applyColorScheme(this.settings.colorScheme);
 		this.applyAuthorVisibility();
+		this.applyCardView();
 		// Vault images resolve only once the vault is indexed.
 		this.app.workspace.onLayoutReady(() => this.applyProfile());
 
 		this.registerEditorExtension([
 			commentField,
 			tableHighlightPlugin,
+			htmlHighlightPlugin,
+			activeAnchorField,
 			draftField,
 			commentConfig.of({
 				app: this.app,
@@ -116,7 +123,9 @@ export default class DocCommentsPlugin extends Plugin {
 
 		this.registerMarkdownPostProcessor((el, ctx) => {
 			highlightPostProcessor(el, ctx);
-			this.scheduleReadingRefresh();
+			// Obsidian renders Markdown everywhere (hover previews, embeds, canvas…);
+			// only a section of a note that has comments needs the margin refreshed.
+			if (ctx.getSectionInfo(el)?.text.includes("<!--c")) this.scheduleReadingRefresh();
 			// PDF export awaits this before printing; it's a no-op everywhere else.
 			return printNotesPostProcessor(el, ctx, {
 				app: this.app,
@@ -145,7 +154,21 @@ export default class DocCommentsPlugin extends Plugin {
 		// resize fires while a dock collapses/expands — catches that case promptly
 		// even if layout-change doesn't.
 		this.registerEvent(this.app.workspace.on("resize", () => this.syncSidebarOpen()));
-		this.registerEvent(this.app.vault.on("modify", () => this.scheduleReadingRefresh()));
+		// Only a change to a note open in Reading view matters to the margin (sync
+		// tools modify files all the time).
+		this.registerEvent(
+			this.app.vault.on("modify", (file) => {
+				const shown = this.app.workspace
+					.getLeavesOfType("markdown")
+					.some(
+						(leaf) =>
+							leaf.view instanceof MarkdownView &&
+							leaf.view.file === file &&
+							leaf.view.getMode() === "preview",
+					);
+				if (shown) this.scheduleReadingRefresh();
+			}),
+		);
 		// Fires on theme/appearance changes (light↔dark, snippet toggles, …) — a
 		// custom per-color override is picked per-theme, so switching needs a
 		// re-apply to pick up the other theme's map.
@@ -168,6 +191,33 @@ export default class DocCommentsPlugin extends Plugin {
 			name: "Toggle resolved comments",
 			callback: () => void this.toggleResolved(),
 		});
+
+		this.addCommand({
+			id: "toggle-compact-cards",
+			name: "Toggle compact comment cards",
+			callback: () => void this.setCardView(this.settings.cardView === "compact" ? "default" : "compact"),
+		});
+
+		// Status bar (desktop): the current card view, click to switch.
+		this.cardViewStatus = this.addStatusBarItem();
+		this.cardViewStatus.addClass("mod-clickable", "dc-card-view-status");
+		this.cardViewStatus.setAttribute("aria-label", "Comment card view");
+		this.registerDomEvent(this.cardViewStatus, "click", (evt) => {
+			const menu = new Menu();
+			for (const [id, label] of [
+				["default", "Default view"],
+				["compact", "Compact (comment text only)"],
+			] as const) {
+				menu.addItem((item) =>
+					item
+						.setTitle(label)
+						.setChecked(this.settings.cardView === id)
+						.onClick(() => void this.setCardView(id)),
+				);
+			}
+			menu.showAtMouseEvent(evt);
+		});
+		this.applyCardView();
 
 		this.addCommand({
 			id: "toggle-print-comments",
@@ -374,6 +424,22 @@ export default class DocCommentsPlugin extends Plugin {
 		applyProfile(this.app, this.settings.profilePhoto, this.settings.showMyProfile);
 	}
 
+	private async setCardView(view: string): Promise<void> {
+		this.settings.cardView = view;
+		await this.saveSettings();
+		this.applyCardView();
+	}
+
+	/** Compact cards: a body class the stylesheet keys off (no re-render). */
+	applyCardView(): void {
+		const compact = this.settings.cardView === "compact";
+		activeDocument.body.toggleClass("dc-compact-cards", compact);
+		const indicator = this.settings.cardIndicator;
+		for (const mode of ["line", "tint", "dot", "none"])
+			activeDocument.body.toggleClass(`dc-indicator-${mode}`, mode === indicator);
+		this.cardViewStatus?.setText(compact ? "💬 Compact" : "💬 Default");
+	}
+
 	/** Re-applies the chosen palette color, the intensity slider, any custom
 	 *  per-color overrides, and the highlight/underline annotation style.
 	 *  Called by the settings tab after any of those change, and on theme
@@ -467,7 +533,7 @@ export default class DocCommentsPlugin extends Plugin {
 	onunload(): void {
 		this.readingManager?.destroy();
 		this.textToolbar?.destroy();
-		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple");
+		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple", "dc-compact-cards");
 		clearProfile();
 	}
 
