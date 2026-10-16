@@ -237,7 +237,7 @@ Create the `notion-style-comments` directory if it does not exist.
 
 ```bash
 git clone https://github.com/jiwooroh/notion-document-comments
-cd obsidian-document-comments
+cd notion-document-comments
 npm install
 npm run build
 ```
