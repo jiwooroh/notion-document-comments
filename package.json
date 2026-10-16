@@ -5,8 +5,8 @@
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "node node_modules/typescript-7/bin/tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
-		"typecheck": "node node_modules/typescript-7/bin/tsc -noEmit -skipLibCheck",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck",
 		"format": "oxfmt src test vitest.config.ts",
 		"format:check": "oxfmt --check src test vitest.config.ts",
 		"lint": "oxlint src test vitest.config.ts && eslint src package.json",
@@ -33,7 +33,6 @@
 		"oxfmt": "^0.62.0",
 		"oxlint": "^1.76.0",
 		"typescript": "^6.0.3",
-		"typescript-7": "npm:typescript@^7.0.2",
 		"typescript-eslint": "^8.65.0",
 		"vitest": "^4.1.10"
 	},
