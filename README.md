@@ -103,7 +103,7 @@ Switch how comment cards look from **💬** in the status bar at the bottom of O
 
 ### Comments in PDF export
 
-When you export a note to PDF, each commented passage is highlighted with a footnote number, and its comment (with replies) is printed beside it in a right-hand margin column. Turn it off with **Show comments in PDF export** in settings, or run **Toggle comments in PDF export** from the command palette. Resolved comments are included only when **Show resolved comments** is on.
+When you export a note to PDF, each commented passage is highlighted with a footnote number, and its comment (with replies) is printed beside it in a right-hand margin column. Comments on nearby lines are spread around their text without overlapping, and a comment near the bottom of a page starts beside its text and continues on the next page. Turn it off with **Show comments in PDF export** in settings, or run **Toggle comments in PDF export** from the command palette. Resolved comments are included only when **Show resolved comments** is on.
 
 ### Narrow window layout
 
@@ -139,9 +139,9 @@ Phones show highlights only, and you read and add comments in the sidebar and a 
 
 Comments show in Reading view even when the commented text has formatting in it (bold, italic, links, wikilinks, `==highlights==`), crosses a formatting boundary, runs across blockquote or list lines, or overlaps another comment. A comment that lost one of its markers (for example after an edit outside the plugin) is found by the quote saved with it.
 
-### Scrolling
+### Scrolling and speed
 
-In the editor, comment cards scroll exactly with the text.
+In the editor, comment cards scroll exactly with the text, without re-measuring on every scroll frame. Highlights on formatted text appear together with the text as you scroll or type, and hovering a highlight doesn't re-lay out the margin.
 
 ### Smaller touches
 
@@ -307,7 +307,7 @@ The Reading view command cannot add comments to embedded content.
 
 ### Manage a comment
 
-Select a card to open its reply field. Each entry has **react**, **resolve**, and **reply** buttons, plus a **⋯** menu to change the comment's color or style, or delete it. On iPad, only **react** and **⋯** are shown and **resolve** / **reply** are in the **⋯** menu. Click your own comment text to edit it.
+Click a card to open its reply field. Each comment has **react** and **resolve** buttons, plus a **⋯** menu to change the comment's color or style, or delete it. On iPad, only **react** and **⋯** are shown and **resolve** is in the **⋯** menu. Click your own comment text to edit it.
 
 Use the **Open comments sidebar** command or ribbon icon to show all comments in the active note.
 

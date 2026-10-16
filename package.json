@@ -27,7 +27,7 @@
 		"@types/node": "^26.1.2",
 		"esbuild": "^0.28.1",
 		"eslint": "^10.8.0",
-		"eslint-plugin-obsidianmd": "^0.4.1",
+		"eslint-plugin-obsidianmd": "^0.4.2",
 		"happy-dom": "^20.11.1",
 		"obsidian": "^1.5.7",
 		"oxfmt": "^0.62.0",

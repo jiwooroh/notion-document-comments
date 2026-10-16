@@ -22,7 +22,7 @@ const readLineWidthPx = (el: HTMLElement): number => {
 	const num = parseFloat(raw);
 	if (Number.isNaN(num)) return fallback;
 	if (raw.endsWith("rem") || raw.endsWith("em")) {
-		const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		const remPx = parseFloat(getComputedStyle(el.ownerDocument.documentElement).fontSize) || 16;
 		return num * remPx;
 	}
 	return num; // "px" suffix or bare legacy number — both already pixels

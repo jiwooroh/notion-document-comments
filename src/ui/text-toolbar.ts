@@ -151,11 +151,11 @@ export class TextFormatToolbar {
 				attr: { type: "button", "aria-label": c.label, title: c.label },
 			});
 			if (kind === "highlight") {
-				swatch.style.backgroundColor = `var(--dc-hl-${c.id})`;
+				swatch.setCssStyles({ backgroundColor: `var(--dc-hl-${c.id})` });
 			} else {
 				swatch.addClass("dc-color-swatch--text");
 				swatch.setText("A");
-				swatch.style.color = `var(--dc-hl-${c.id}-border)`;
+				swatch.setCssStyles({ color: `var(--dc-hl-${c.id}-border)` });
 			}
 			swatch.addEventListener("click", (e) => {
 				e.stopPropagation();

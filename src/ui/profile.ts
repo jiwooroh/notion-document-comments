@@ -25,15 +25,14 @@ export const cssUrl = (url: string): string => `url("${url.replace(/["\\]/g, "\\
 export const applyProfile = (app: App, photo: string, show: boolean): void => {
 	const body = activeDocument.body;
 	const url = resolvePhotoUrl(app, photo);
-	if (url) body.style.setProperty("--dc-my-avatar", cssUrl(url));
-	else body.style.removeProperty("--dc-my-avatar");
+	body.setCssProps({ "--dc-my-avatar": url ? cssUrl(url) : "" });
 	body.toggleClass("dc-has-avatar", !!url);
 	body.toggleClass("dc-hide-my-profile", !show);
 };
 
 export const clearProfile = (): void => {
 	const body = activeDocument.body;
-	body.style.removeProperty("--dc-my-avatar");
+	body.setCssProps({ "--dc-my-avatar": "" });
 	body.removeClass("dc-has-avatar", "dc-hide-my-profile");
 };
 
