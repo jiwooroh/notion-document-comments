@@ -735,7 +735,11 @@ body.dc-annotation-underline ::highlight(nsc-html-gray-default) {
    over such snippets; code keeps its monospace font. Covers the margin and
    sidebar cards and the comments printed into PDF exports. */
 .doc-comment-card:not(#dc-font),
-.doc-comment-card :not(#dc-font):not(code):not(code *):not(pre):not(pre *),
+.doc-comment-card :not(#dc-font):not(code):not(code *):not(pre):not(pre *) {
+	font-family: var(--font-interface);
+}
+/* Printed notes sit inside the note's rendered content, where such snippets
+   apply with !important — the one place this needs it too. */
 .dc-print-note:not(#dc-font),
 .dc-print-note :not(#dc-font):not(code):not(code *):not(pre):not(pre *) {
 	font-family: var(--font-interface) !important;
@@ -1099,11 +1103,11 @@ body.dc-hide-author .dc-entry__author {
 	gap: 2px;
 	flex-shrink: 0;
 }
-.dc-act--delete:hover {
-	background: color-mix(in srgb, var(--text-error, #ff4d4f) 12%, transparent) !important;
-	color: var(--text-error, #ff4d4f) !important;
+.dc-entry__bar .dc-act.dc-act--delete:hover {
+	background: color-mix(in srgb, var(--text-error, #ff4d4f) 12%, transparent);
+	color: var(--text-error, #ff4d4f);
 }
-.dc-act {
+.dc-entry__bar .dc-act {
 	display: flex;
 	flex-shrink: 0;
 	align-items: center;
@@ -1121,7 +1125,7 @@ body.dc-hide-author .dc-entry__author {
 	box-shadow: none;
 	cursor: pointer;
 }
-.dc-act:hover {
+.dc-entry__bar .dc-act:hover {
 	/* Blends into the card until hovered, then fills like the composer's
 	   round buttons (.dc-round) — consistent flat-icon-button treatment. */
 	background-color: var(--background-modifier-hover);
@@ -1216,38 +1220,40 @@ body.dc-hide-author .dc-entry__author {
    --background-modifier-form-field background, so "transparent" would show
    that grey instead of matching the card. Confirm keeps a tint of accent
    color (icon only) so Save/Send still reads as the primary action. */
-.dc-round {
-	flex: 0 0 auto !important;
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
-	width: 28px !important;
-	height: 28px !important;
-	padding: 0 !important;
-	border: none !important;
-	border-radius: var(--radius-s, 4px) !important;
-	background-color: var(--background-primary) !important;
-	color: var(--text-muted) !important;
-	box-shadow: none !important;
-	cursor: pointer !important;
-	margin: 0 !important;
-	transition: background-color 150ms ease, color 150ms ease !important;
+/* Selectors include `.dc-field__actions button` to out-rank Obsidian's own
+   `button:not(.clickable-icon)` styles without !important. */
+.dc-field__actions button.dc-round {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	border-radius: var(--radius-s, 4px);
+	background-color: var(--background-primary);
+	color: var(--text-muted);
+	box-shadow: none;
+	cursor: pointer;
+	margin: 0;
+	transition: background-color 150ms ease, color 150ms ease;
 }
-.dc-round:hover {
-	background-color: var(--background-modifier-hover) !important;
-	color: var(--text-normal) !important;
+.dc-field__actions button.dc-round:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--text-normal);
 }
-.dc-round .svg-icon {
-	width: 15px !important;
-	height: 15px !important;
-	flex-shrink: 0 !important;
+.dc-field__actions button.dc-round .svg-icon {
+	width: 15px;
+	height: 15px;
+	flex-shrink: 0;
 }
-.dc-round--confirm {
-	color: var(--interactive-accent) !important;
+.dc-field__actions button.dc-round--confirm {
+	color: var(--interactive-accent);
 }
-.dc-round--confirm:hover {
-	background-color: var(--background-modifier-hover) !important;
-	color: var(--interactive-accent-hover, var(--interactive-accent)) !important;
+.dc-field__actions button.dc-round--confirm:hover {
+	background-color: var(--background-modifier-hover);
+	color: var(--interactive-accent-hover, var(--interactive-accent));
 }
 
 /* ── Emoji picker popover ──────────────────────────────────────────────── */
@@ -1380,8 +1386,14 @@ body.dc-hide-author .dc-entry__author {
 .dc-text-toolbar.is-measuring {
 	visibility: hidden;
 }
-.dc-text-toolbar__btn {
-	all: unset;
+.dc-text-toolbar .dc-text-toolbar__btn {
+	appearance: none;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: none;
+	box-shadow: none;
+	font: inherit;
 	box-sizing: border-box;
 	display: inline-flex;
 	align-items: center;

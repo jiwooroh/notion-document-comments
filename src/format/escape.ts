@@ -73,8 +73,7 @@ const splitUnescapedCommas = (s: string): string[] => {
 	const parts: string[] = [];
 	let start = 0;
 	for (let i = 0; i < s.length; i++) {
-		if (s[i] === "\\")
-			i++; // skip the escaped character
+		if (s[i] === "\\") i++; // skip the escaped character
 		else if (s[i] === ",") {
 			parts.push(s.slice(start, i));
 			start = i + 1;
