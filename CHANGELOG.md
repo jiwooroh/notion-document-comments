@@ -29,7 +29,7 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## 0.2.14
 
-![PDF style card view](https://raw.githubusercontent.com/jiwooroh/obsidian-document-comments/main/docs/screenshots/pdf-style-0.2.14.jpg)
+![PDF style card view](https://raw.githubusercontent.com/jiwooroh/notion-document-comments/main/docs/screenshots/pdf-style-0.2.14.jpg)
 
 - **PDF style card view:** a third choice next to Default and Compact (status bar, or settings → Comment card view). Like a PDF reader, each comment is a small note icon in its color right next to the text, level with its highlight; hover shows the first line, and clicking the icon or the highlight opens the card beside it as a rounded card in the comment's color with a light shadow. Escape, a click elsewhere, or the icon again closes it. Opening and closing don't animate. Works in Live Preview and Reading view; the sidebar is unchanged.
 
@@ -62,7 +62,7 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## 0.2.12
 
-![Comment cards beside the note on iPad](https://raw.githubusercontent.com/jiwooroh/obsidian-document-comments/main/docs/screenshots/ipad-0.2.12.webp)
+![Comment cards beside the note on iPad](https://raw.githubusercontent.com/jiwooroh/notion-document-comments/main/docs/screenshots/ipad-0.2.12.webp)
 
 ### iPad
 
@@ -72,7 +72,7 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ### Reading view fixes
 
-![Comment cards beside highlights in Reading view on Mac](https://raw.githubusercontent.com/jiwooroh/obsidian-document-comments/main/docs/screenshots/mac-0.2.12.jpg)
+![Comment cards beside highlights in Reading view on Mac](https://raw.githubusercontent.com/jiwooroh/notion-document-comments/main/docs/screenshots/mac-0.2.12.jpg)
 
 - **Comments no longer disappear in Reading view.** The plugin attached to the first Reading view element it found in the tab, which could be a hidden copy of the note (for example one rendered by another plugin), so highlights and cards went there out of sight. It now uses the note's own Reading view.
 - **Commented text with formatting is found:** bold, italic, links and wikilinks, `==highlights==`, text that crosses a formatting boundary, and overlapping comments all get their highlight and card now (in Reading view and PDF export).
