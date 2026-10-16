@@ -129,7 +129,7 @@ Long comments show in full when there's room. A comment folds to a "more" previe
 
 - iPad shows comment cards in the margin, like desktop. When a note has comments, the text narrows so the column always fits beside it.
 - Cards are compact on iPad: a 270px column, tighter spacing, and smaller buttons, sitting evenly between the text and the screen edge.
-- Each comment shows just **React** and **⋯**. **Resolve** and **Reply** are in the **⋯** menu, or tap the card to reply.
+- Each comment shows just **React** and **⋯**. **Resolve** is in the **⋯** menu; tap the card to reply.
 
 Phones show highlights only, and you read and add comments in the sidebar and a pop-up.
 
@@ -157,7 +157,7 @@ In the editor, comment cards scroll exactly with the text.
 - Store comments inside Markdown files without a separate database.
 - Add comments to prose, inline code, tables, and selected lines in fenced code blocks.
 - Save an empty comment and highlight its selected text.
-- Reply, resolve, reopen, edit, delete, or react to a comment.
+- Reply (click the card), resolve, reopen, edit, delete, or react to a comment.
 - Write Markdown in comments, including links, lists, bold text, and code spans.
 - Use the same notes on desktop and mobile.
 

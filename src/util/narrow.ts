@@ -37,5 +37,21 @@ export const isNarrowForMargin = (container: HTMLElement): boolean => {
 	// cards floating over it and hiding until a highlight is tapped (there's no
 	// hover on a touch screen to reveal them).
 	if (Platform.isTablet) return false;
-	return container.clientWidth < readLineWidthPx(container) + NARROW_SLACK_PX;
+	// Reading the line width forces a style pass; only redo it when the
+	// container's width (or the theme/CSS, see resetNarrowCache) changed.
+	const width = container.clientWidth;
+	const cached = cache.get(container);
+	if (cached && cached.width === width && cached.generation === generation) return cached.narrow;
+	const narrow = width < readLineWidthPx(container) + NARROW_SLACK_PX;
+	cache.set(container, { width, generation, narrow });
+	return narrow;
+};
+
+const cache = new WeakMap<HTMLElement, { width: number; generation: number; narrow: boolean }>();
+let generation = 0;
+
+/** Forget cached results — call when CSS changes (theme, snippets, readable
+ *  line width), which can change `--file-line-width` without a resize. */
+export const resetNarrowCache = (): void => {
+	generation++;
 };

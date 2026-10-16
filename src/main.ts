@@ -33,6 +33,7 @@ import { htmlHighlightPlugin } from "./editor/html-highlights";
 import { activeAnchorField } from "./editor/active";
 import { computeLineStartMarkupFixes } from "./format/line-start";
 import { applyCommentEdit } from "./editor/routing";
+import { resetNarrowCache } from "./util/narrow";
 import {
 	applyAnnotationStyle,
 	applyColorScheme,
@@ -182,7 +183,12 @@ export default class DocCommentsPlugin extends Plugin {
 		// Fires on theme/appearance changes (light↔dark, snippet toggles, …) — a
 		// custom per-color override is picked per-theme, so switching needs a
 		// re-apply to pick up the other theme's map.
-		this.registerEvent(this.app.workspace.on("css-change", () => this.refreshHighlightColor()));
+		this.registerEvent(
+			this.app.workspace.on("css-change", () => {
+				resetNarrowCache();
+				this.refreshHighlightColor();
+			}),
+		);
 
 		this.addCommand({
 			id: "add-comment",

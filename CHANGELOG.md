@@ -5,6 +5,16 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.15
+
+- **No Reply button:** cards no longer show a Reply button (and it's gone from the iPad ⋯ menu). Click a card to reply.
+
+- Highlights on formatted text (inline HTML) now appear in the same frame as the text while you scroll or type, instead of about 150 ms later.
+
+- Fixed a card's color indicator not changing when you change that comment's color.
+
+- **Smoother scrolling:** in the editor, the comment column no longer re-measures every card and re-reads styles on each scroll frame — it already scrolls with the text. The narrow-window check is cached until the window or theme changes.
+
 ## 0.2.14
 
 ![PDF style card view](https://raw.githubusercontent.com/jiwooroh/obsidian-document-comments/main/docs/screenshots/pdf-style-0.2.14.jpg)

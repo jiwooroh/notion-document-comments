@@ -75,7 +75,7 @@ class HtmlHighlights {
 	}
 
 	destroy(): void {
-		if (this.timer !== null) window.clearTimeout(this.timer);
+		if (this.timer !== null) (this.view.dom.ownerDocument.defaultView ?? window).cancelAnimationFrame(this.timer);
 		this.observer?.disconnect();
 		setViewRanges(this.view, new Map(), true);
 	}
@@ -99,13 +99,15 @@ class HtmlHighlights {
 		}
 	}
 
-	/** Coalesce bursts (typing, scrolling, widget re-renders) into one pass. */
+	/** Coalesce bursts (typing, scrolling, widget re-renders) into one pass per
+	 *  frame — soon enough that highlights appear with the text, not after it. */
 	private schedule(): void {
 		if (this.timer !== null) return;
-		this.timer = window.setTimeout(() => {
+		const win = this.view.dom.ownerDocument.defaultView ?? window;
+		this.timer = win.requestAnimationFrame(() => {
 			this.timer = null;
 			this.refresh();
-		}, 150);
+		});
 	}
 
 	private refresh(): void {

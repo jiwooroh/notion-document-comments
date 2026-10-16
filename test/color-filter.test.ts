@@ -30,3 +30,21 @@ describe("sidebar color filter", () => {
 		]);
 	});
 });
+
+import { cardSignature } from "../src/ui/card-format";
+
+describe("card refresh", () => {
+	it("a color change re-renders the card, so its indicator follows", () => {
+		const base = {
+			id: "a",
+			open: null,
+			close: null,
+			body: null,
+			status: "open" as const,
+			thread: [],
+			reactions: [],
+		};
+		expect(cardSignature({ ...base, color: "red" })).not.toBe(cardSignature({ ...base }));
+		expect(cardSignature({ ...base, style: "underline" })).not.toBe(cardSignature({ ...base }));
+	});
+});
