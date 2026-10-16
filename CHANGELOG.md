@@ -5,6 +5,8 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.18
+
 - Addressed the Obsidian review warnings: dev-tool dependencies updated (no high or critical vulnerabilities left), `!important` removed from the stylesheet except where it must win over Obsidian's print styles or a note snippet's own `!important`, no `all: unset`, and the README credits the original author without linking a same-named repository.
 
 ## 0.2.17
