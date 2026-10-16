@@ -19,6 +19,7 @@ import { applyCommentEdit, insertComment as routeInsertComment } from "../editor
 import { closestSpanId, spanSelector } from "../util/css";
 import { isNarrowForMargin } from "../util/narrow";
 import { crowdedCards, stackTops } from "../ui/stack";
+import { PdfPins, isPdfCards, layoutPins } from "../ui/pdf-pins";
 import { CARD_GAP, DRAFT_LIFT_PX, FLASH_MS } from "../ui/constants";
 import { buildDraftComposer } from "../ui/draft-composer";
 import { EmptySubmitAction } from "../ui/draft-behavior";
@@ -66,6 +67,7 @@ class ReadingMargin {
 	private animFrames = 0;
 	private animatingLoop = false;
 	private destroyed = false;
+	private pins: PdfPins;
 
 	constructor(
 		private readingView: HTMLElement,
@@ -102,6 +104,7 @@ class ReadingMargin {
 			openInSidebar: (id) => deps.openInSidebar?.(id),
 		};
 
+		this.pins = new PdfPins(this.container, this.cards, () => this.position());
 		this.resizeObserver = new ResizeObserver(() => this.position());
 		this.bindScroller();
 		this.readingView.addEventListener("mouseover", this.onMouseOver);
@@ -207,7 +210,7 @@ class ReadingMargin {
 		// Gather geometry (reads) first, then write every top in one pass — cards are
 		// absolutely positioned, so a top write can't change any height.
 		const placements: Array<{ el: HTMLElement; top: number; height: number }> = [];
-		const anchored: Array<{ card: Card; mid: number }> = [];
+		const anchored: Array<{ card: Card; mid: number; comment: ParsedComment }> = [];
 		for (const c of this.comments) {
 			const card = this.cards.get(c.id);
 			if (!card) continue;
@@ -219,7 +222,20 @@ class ReadingMargin {
 			card.el.removeClass("dc-offscreen");
 			if (card.el.offsetHeight === 0) continue;
 			const spanRect = span.getBoundingClientRect();
-			anchored.push({ card, mid: (spanRect.top + spanRect.bottom) / 2 - topRef });
+			anchored.push({ card, mid: (spanRect.top + spanRect.bottom) / 2 - topRef, comment: c });
+		}
+		if (isPdfCards(this.readingView.ownerDocument)) {
+			// PDF style: icons instead of cards, an open card as a popover.
+			const view = this.scroller.getBoundingClientRect();
+			layoutPins(
+				anchored,
+				this.pins.openId,
+				{ top: view.top - topRef, bottom: view.bottom - topRef },
+				{ container: this.container, text: this.scroller.querySelector(".markdown-preview-sizer") },
+			);
+			anchored.length = 0;
+		} else {
+			for (const card of this.cards.values()) card.el.removeClass("dc-pdf-open");
 		}
 		// Show each long thread in full unless that would crowd a neighbor; only
 		// the tight spots fold. Decided before measuring heights for stacking,
@@ -443,6 +459,8 @@ class ReadingMargin {
 	private onMouseDown = (e: MouseEvent): void => {
 		const id = closestSpanId(e.target);
 		if (id) this.setActive(id);
+		// PDF style: clicking a highlight opens its comment.
+		if (id && this.cards.has(id)) this.pins.open(id);
 	};
 
 	/** Listen to the current scroller's scroll and size. */
@@ -477,6 +495,7 @@ class ReadingMargin {
 		this.readingView.removeEventListener("mouseover", this.onMouseOver);
 		this.readingView.removeEventListener("mouseout", this.onMouseOut);
 		this.readingView.removeEventListener("mousedown", this.onMouseDown);
+		this.pins.destroy();
 		// The container we own goes away; the state classes sit on Obsidian's
 		// reading-view element, so clear them explicitly to avoid leaving it capped.
 		this.readingView.removeClasses(["dc-has", "dc-margin", "dc-highlights", "dc-hide-resolved"]);

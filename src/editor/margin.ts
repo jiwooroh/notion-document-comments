@@ -24,7 +24,8 @@ import {
 import { closestSpanId, spanSelector } from "../util/css";
 import { isNarrowForMargin } from "../util/narrow";
 import { crowdedCards, stackTops } from "../ui/stack";
-import { setActiveAnchor } from "./active";
+import { PdfPins, isPdfCards, layoutPins } from "../ui/pdf-pins";
+import { isHoverOnly, setActiveAnchor } from "./active";
 import { CARD_GAP, DRAFT_LIFT_PX, FLASH_MS } from "../ui/constants";
 import { buildDraftComposer } from "../ui/draft-composer";
 import { EmptySubmitAction } from "../ui/draft-behavior";
@@ -58,6 +59,7 @@ class MarginView implements PluginValue {
 	private animFrames = 0;
 	private animatingLoop = false;
 	private destroyed = false;
+	private pins: PdfPins;
 
 	constructor(private view: EditorView) {
 		// Inside the scroller (not beside it), so the cards scroll natively with the
@@ -101,6 +103,7 @@ class MarginView implements PluginValue {
 			openInSidebar: (id) => view.state.facet(commentConfig).openInSidebar?.(id),
 		};
 
+		this.pins = new PdfPins(this.container, this.cards, () => this.requestReposition());
 		view.scrollDOM.addEventListener("scroll", this.scrollHandler, { passive: true });
 		this.resizeObserver = new ResizeObserver(() => this.requestReposition());
 		this.resizeObserver.observe(view.scrollDOM);
@@ -119,7 +122,9 @@ class MarginView implements PluginValue {
 			update.docChanged ||
 			update.viewportChanged ||
 			update.geometryChanged ||
-			update.transactions.some((tr) => tr.effects.length > 0 || (!tr.docChanged && !tr.selection));
+			update.transactions.some(
+				(tr) => !isHoverOnly(tr) && (tr.effects.length > 0 || (!tr.docChanged && !tr.selection)),
+			);
 		if (!relevant) return;
 		// Reconcile (pure DOM — safe during the update cycle), then schedule the
 		// geometry-dependent reposition for the measure phase. coordsAtPos throws if
@@ -160,6 +165,7 @@ class MarginView implements PluginValue {
 		this.view.contentDOM.removeEventListener("mouseover", this.onContentMouseOver);
 		this.view.contentDOM.removeEventListener("mouseout", this.onContentMouseOut);
 		this.removeDraftOutside();
+		this.pins.destroy();
 		for (const card of this.cards.values()) card.destroy();
 		this.cards.clear();
 		this.foldBadges.clear();
@@ -265,7 +271,7 @@ class MarginView implements PluginValue {
 		const foldGroups = new Map<number, { fold: { from: number; to: number }; ids: string[] }>();
 
 		const doc = this.view.state.doc.toString();
-		const anchored: Array<{ card: Card; mid: number }> = [];
+		const anchored: Array<{ card: Card; mid: number; comment: ParsedComment }> = [];
 		for (const c of this.comments()) {
 			const card = this.cards.get(c.id);
 			if (!card) continue;
@@ -290,9 +296,26 @@ class MarginView implements PluginValue {
 			}
 			card.el.removeClass("dc-offscreen");
 			if (card.el.offsetHeight === 0) continue; // hidden (e.g. resolved)
-			anchored.push({ card, mid: (coords.top + coords.bottom) / 2 - editorTop });
+			anchored.push({ card, mid: (coords.top + coords.bottom) / 2 - editorTop, comment: c });
 		}
 
+		const pdf = isPdfCards(this.view.dom.ownerDocument);
+		if (pdf) {
+			// PDF style: icons instead of cards, an open card as a popover.
+			const scroller = this.view.scrollDOM;
+			layoutPins(
+				anchored,
+				this.pins.openId,
+				{
+					top: scroller.scrollTop,
+					bottom: scroller.scrollTop + scroller.clientHeight,
+				},
+				{ container: this.container, text: this.view.contentDOM },
+			);
+			anchored.length = 0;
+		} else {
+			for (const card of this.cards.values()) card.el.removeClass("dc-pdf-open");
+		}
 		// Show each long thread in full unless that would crowd a neighbor; only
 		// the tight spots fold. Decided before measuring heights for stacking,
 		// since folding changes them.
@@ -497,6 +520,8 @@ class MarginView implements PluginValue {
 	private onContentMouseDown = (e: MouseEvent): void => {
 		const id = closestSpanId(e.target);
 		if (id) this.setActive(id);
+		// PDF style: clicking a highlight opens its comment.
+		if (id && this.cards.has(id)) this.pins.open(id);
 	};
 
 	private onContentMouseOver = (e: MouseEvent): void => {

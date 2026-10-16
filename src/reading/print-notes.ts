@@ -3,6 +3,7 @@ import { ParsedComment, TextRange } from "../format/types";
 import { anchorRange, parseComments } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { wrapAnchor, wrapFirstMatch } from "./highlight";
+import { nudgeMarginNotes } from "./print-stack";
 
 export type PrintNotesDeps = {
 	app: App;
@@ -99,6 +100,12 @@ export const printNotesPostProcessor = async (
 	// so they move with their text across page breaks. Absolute positions
 	// measured before pagination drifted from the text on later pages.
 	await Promise.all(renders);
+	// Chromium switches to print media at the real page width right before
+	// printing; that's when crowded notes can be measured and nudged up.
+	const win = el.ownerDocument.defaultView;
+	win?.matchMedia("print").addEventListener("change", (e) => {
+		if (e.matches) nudgeMarginNotes(el);
+	});
 };
 
 /**

@@ -36,7 +36,8 @@ export type DocCommentsSettings = {
 	showMyProfile: boolean;
 	/** Show who wrote each comment and reply. */
 	showAuthor: boolean;
-	/** "default" cards, or "compact": just the comment text until a card is opened. */
+	/** "default" cards, "compact" (just the comment text until a card is opened),
+	 *  or "pdf" (note icons that open the card as a popover, like a PDF reader). */
 	cardView: string;
 	/** How a card shows its comment's color: "line" (left bar), "tint" (card
 	 *  filled with the color), "dot", or "none". */
@@ -133,9 +134,9 @@ const SETTING_META: ReadonlyArray<{
 	{
 		key: "cardView",
 		name: "Comment card view",
-		desc: "Default shows the author, date, and buttons on every card. Compact shows only the comment text; click a card to see its buttons. Also switchable from the status bar.",
+		desc: "Default shows the author, date, and buttons on every card. Compact shows only the comment text; click a card to see its buttons. PDF style shows a small note icon beside each highlight, like a PDF reader; click it (or the highlight) to open the comment. Also switchable from the status bar.",
 		aliases: ["compact", "card view", "comment view", "dense"],
-		control: { type: "dropdown", options: { default: "Default", compact: "Compact" } },
+		control: { type: "dropdown", options: { default: "Default", compact: "Compact", pdf: "PDF style" } },
 	},
 	{
 		key: "cardIndicator",

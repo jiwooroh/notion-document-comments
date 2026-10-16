@@ -3,6 +3,7 @@ import { CommentData, ParsedComment, Reaction } from "../format/types";
 import { anchorRange, isAnchored, isHighlight, isInFencedCode, parseComments } from "../format/parse";
 import { codeSelectionTarget, isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { closeMarker, openMarker, serializeBody } from "../format/serialize";
+import { insideLineStartMarkup } from "../format/line-start";
 
 /** A document edit in original coordinates (matches CodeMirror's ChangeSpec shape). */
 export type Change = {
@@ -76,6 +77,9 @@ export const computeAddComment = (
 		return computeAddCodeComment(doc, from, to, input);
 	}
 	({ from, to } = expandInlineCodeSelection(doc, from, to));
+	// Keep the line from starting with the marker, which would stop Markdown
+	// from formatting the rest of the line.
+	({ from, to } = insideLineStartMarkup(doc, from, to));
 
 	const quote = doc.slice(from, to);
 	const data: CommentData = {
