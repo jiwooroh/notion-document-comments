@@ -27,7 +27,8 @@ export const cardEntries = (comment: ParsedComment): CardEntry[] => {
  * field that affects what the card shows must be included, or edits go unseen.
  */
 export const cardSignature = (c: ParsedComment): string => {
-	return JSON.stringify([c.status, c.author, c.createdAt, c.thread, c.reactions, isAnchored(c)]);
+	// Color and style too: the card's color indicator follows the comment's color.
+	return JSON.stringify([c.status, c.author, c.createdAt, c.thread, c.reactions, isAnchored(c), c.color, c.style]);
 };
 
 /** A short relative time ("just now", "5m", "3h", "2d") that falls back to an

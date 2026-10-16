@@ -191,13 +191,6 @@ export class Card {
 		}
 	}
 
-	/** The Reply button: open the card if it isn't already, otherwise just
-	 *  focus the composer that's already there. */
-	private openReply(): void {
-		if (!this.open) this.setOpen(true);
-		else this.focusComposer();
-	}
-
 	/** The "more" / "less" links: the user's explicit fold choice, kept until
 	 *  they click the other one. */
 	private setFold(fold: "folded" | "unfolded"): void {
@@ -426,8 +419,9 @@ export class Card {
 			"",
 			"☺",
 		);
-		// iPad keeps the header to React + ⋯; Resolve and Reply live in the ⋯ menu
-		// there (see openMoreMenu), so the narrower tablet card isn't crowded.
+		// No Reply button: click the card to reply. iPad keeps the header to
+		// React + ⋯; Resolve lives in the ⋯ menu there (see openMoreMenu), so the
+		// narrower tablet card isn't crowded.
 		if (i === 0 && !Platform.isTablet) {
 			const resolved = this.comment.status === "resolved";
 			this.iconButton(
@@ -438,7 +432,6 @@ export class Card {
 				"",
 				resolved ? "↺" : "✓",
 			);
-			this.iconButton(bar, "reply", "Reply", () => this.openReply(), "", "↩");
 		}
 		this.iconButton(
 			bar,
@@ -702,7 +695,6 @@ export class Card {
 			addItem(resolved ? "rotate-ccw" : "check", resolved ? "Reopen" : "Resolve", () =>
 				this.cb.setResolved(this.id, !resolved),
 			);
-			addItem("reply", "Reply", () => this.openReply());
 		}
 		if (index === 0) {
 			addItem("palette", "Change color", () => this.openColorPicker(anchor));

@@ -54,7 +54,6 @@ class MarginView implements PluginValue {
 	private draftFocused = false;
 	private draftOutside: ((e: MouseEvent) => void) | null = null;
 	private cb: CardCallbacks;
-	private scrollHandler = () => this.requestReposition();
 	private resizeObserver: ResizeObserver;
 	private animFrames = 0;
 	private animatingLoop = false;
@@ -104,7 +103,9 @@ class MarginView implements PluginValue {
 		};
 
 		this.pins = new PdfPins(this.container, this.cards, () => this.requestReposition());
-		view.scrollDOM.addEventListener("scroll", this.scrollHandler, { passive: true });
+		// No scroll listener: the column is inside the scroller, so cards already
+		// move with the text, and their tops are in scroll-content coordinates.
+		// CodeMirror reports the viewport/geometry changes that matter as updates.
 		this.resizeObserver = new ResizeObserver(() => this.requestReposition());
 		this.resizeObserver.observe(view.scrollDOM);
 		view.contentDOM.addEventListener("mousedown", this.onContentMouseDown);
@@ -159,7 +160,6 @@ class MarginView implements PluginValue {
 
 	destroy(): void {
 		this.destroyed = true;
-		this.view.scrollDOM.removeEventListener("scroll", this.scrollHandler);
 		this.resizeObserver.disconnect();
 		this.view.contentDOM.removeEventListener("mousedown", this.onContentMouseDown);
 		this.view.contentDOM.removeEventListener("mouseover", this.onContentMouseOver);
