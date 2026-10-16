@@ -1,6 +1,6 @@
 # Notion-style Comments
 
-> This is a fork of [kylemcd/obsidian-document-comments](https://github.com/kylemcd/obsidian-document-comments) (**Document Comments**) by **Kyle McDonald**. All credit for the original plugin goes to the original author. This fork adds the features listed below. The original work is used under the MIT License; see [LICENSE](LICENSE).
+> This is a fork of **Document Comments** by **Kyle McDonald** ([@kylemcd](https://github.com/kylemcd)). All credit for the original plugin goes to the original author. This fork adds the features listed below. The original work is used under the MIT License; see [LICENSE](LICENSE).
 
 Notion-style Comments adds inline comments to Obsidian notes. It shows each comment as a card beside the text on desktop and iPad.
 
