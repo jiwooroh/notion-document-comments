@@ -55,7 +55,14 @@ export type SuggestPlan = {
 	/** In the document after `changes`: refreshed suggestion quotes, and
 	 *  insertions whose text is now empty removed. */
 	followUp: Change[];
+	/** Text the edit would have removed that isn't yours to remove, so it was
+	 *  kept and marked for deletion instead (original coordinates). */
+	deletedRanges: TextRange[];
 };
+
+/** Text an IME composition deleted (it replaced a selection), to be put back
+ *  as a deletion suggestion once the composition ends. `pos` is where it was. */
+export type PendingDeletion = { pos: number; text: string };
 
 type Piece = Change & { seq: number; caret?: number };
 
@@ -117,7 +124,9 @@ export const planSuggestedEdits = (
 		return { kind: "suggest" };
 	};
 
+	const deletedRanges: TextRange[] = [];
 	const markDeleted = (from: number, to: number) => {
+		deletedRanges.push({ from, to });
 		const left = zones.ownDeletes.find((d) => d.close.to === from);
 		const right = zones.ownDeletes.find((d) => d.open.from === to);
 		if (left) {
@@ -216,7 +225,7 @@ export const planSuggestedEdits = (
 		return set.mapPos(c.piece.from, -1) + offset + (c.piece.caret ?? 0);
 	});
 	const next = applyChanges(doc, changes);
-	return { changes, carets: caretPositions, followUp: refreshSuggestions(next, touched) };
+	return { changes, carets: caretPositions, followUp: refreshSuggestions(next, touched), deletedRanges };
 };
 
 /**
@@ -224,7 +233,12 @@ export const planSuggestedEdits = (
  * insertion suggestion, once the composition has ended. Wrapping it while the
  * IME is still composing would rewrite the text under the IME and break it.
  */
-export const planWrapPending = (doc: string, ranges: TextRange[], ctx: SuggestContext): Change[][] => {
+export const planWrapPending = (
+	doc: string,
+	ranges: TextRange[],
+	ctx: SuggestContext,
+	deletions: PendingDeletion[] = [],
+): Change[][] => {
 	const comments = parseComments(doc);
 	const zones = classifyZones(doc, comments, ctx.author);
 	const ids = new Set(comments.map((c) => c.id));
@@ -232,6 +246,28 @@ export const planWrapPending = (doc: string, ranges: TextRange[], ctx: SuggestCo
 	let seq = 0;
 	const push = (from: number, to: number, insert: string) => pieces.push({ from, to, insert, seq: seq++ });
 	const touched = new Set<string>();
+	const pushBody = (id: string, kind: SuggestionKind, at: number, quote: string) => {
+		const data = {
+			author: ctx.author,
+			createdAt: ctx.createdAt,
+			status: "open" as const,
+			suggest: kind,
+			quote,
+			thread: [],
+			reactions: [],
+		};
+		pieces.push({ from: at, to: at, insert: "\n" + serializeBody(id, data), seq: BODY_SEQ + seq++ });
+	};
+
+	// Put back what the composition replaced, struck through, before the new text.
+	for (const { pos, text } of deletions) {
+		if (!text || pos < 0 || pos > doc.length) continue;
+		const id = generateId(ids);
+		ids.add(id);
+		push(pos, pos, openMarker(id) + text + closeMarker(id));
+		pushBody(id, "delete", blockEnd(doc, pos), text);
+		touched.add(id);
+	}
 
 	for (const { from, to } of mergeRanges(ranges)) {
 		if (to <= from) continue;
@@ -256,17 +292,7 @@ export const planWrapPending = (doc: string, ranges: TextRange[], ctx: SuggestCo
 			ids.add(id);
 			push(from, from, openMarker(id));
 			push(to, to, closeMarker(id));
-			const data = {
-				author: ctx.author,
-				createdAt: ctx.createdAt,
-				status: "open" as const,
-				suggest: "insert" as const,
-				quote: doc.slice(from, to),
-				thread: [],
-				reactions: [],
-			};
-			const at = blockEnd(doc, to);
-			pieces.push({ from: at, to: at, insert: "\n" + serializeBody(id, data), seq: BODY_SEQ + seq++ });
+			pushBody(id, "insert", blockEnd(doc, to), doc.slice(from, to));
 			touched.add(id);
 		}
 	}
@@ -444,7 +470,8 @@ const pendingField = StateField.define<DecorationSet>({
 	update(value, tr) {
 		let next = value.map(tr.changes);
 		if (tr.effects.some((e) => e.is(clearPending))) next = Decoration.none;
-		if (tr.docChanged && tr.isUserEvent("input.type.compose") && isSuggesting(tr.startState)) {
+		const composed = tr.docChanged && tr.isUserEvent("input.type.compose") && !tr.annotation(pluginEdit);
+		if (composed && isSuggesting(tr.startState)) {
 			const added: Array<ReturnType<typeof PENDING.range>> = [];
 			tr.changes.iterChanges((_fromA, _toA, fromB, toB) => {
 				if (toB > fromB) added.push(PENDING.range(fromB, toB));
@@ -454,6 +481,20 @@ const pendingField = StateField.define<DecorationSet>({
 		return next;
 	},
 	provide: (f) => EditorView.decorations.from(f),
+});
+
+const addPendingDeletions = StateEffect.define<PendingDeletion[]>();
+
+const pendingDeletionsField = StateField.define<PendingDeletion[]>({
+	create: () => [],
+	update(value, tr) {
+		let next = tr.docChanged ? value.map((d) => ({ ...d, pos: tr.changes.mapPos(d.pos, -1) })) : value;
+		for (const e of tr.effects) {
+			if (e.is(clearPending)) next = [];
+			if (e.is(addPendingDeletions)) next = [...next, ...e.value];
+		}
+		return next;
+	},
 });
 
 const pendingRanges = (state: EditorState): TextRange[] => {
@@ -499,9 +540,7 @@ const keyDeletionEdits = (state: EditorState, forward: boolean): EditInput[] | n
 const suggestFilter = EditorState.transactionFilter.of((tr) => {
 	if (!isSuggesting(tr.startState) || tr.annotation(pluginEdit)) return tr;
 	if (!tr.isUserEvent("input") && !tr.isUserEvent("delete") && !tr.isUserEvent("move")) return tr;
-	// Composition input is tracked by pendingField and wrapped once it ends.
-	if (tr.isUserEvent("input.type.compose")) return tr;
-
+	const composing = tr.isUserEvent("input.type.compose");
 	const userEvent = tr.annotation(Transaction.userEvent) ?? "";
 	const direction: Direction = /backward/.test(userEvent)
 		? "backward"
@@ -535,6 +574,21 @@ const suggestFilter = EditorState.transactionFilter.of((tr) => {
 		direction,
 		pendingRanges(tr.startState),
 	);
+	// Composition input is left alone (rewriting it under the IME breaks it):
+	// pendingField tracks it and it's wrapped once the composition ends. The
+	// exception is a composition that replaces a selection, which deletes the
+	// selected text: the keydown handler in selectionGuard usually turns the
+	// selection into a deletion first, and when it couldn't (no key event), the
+	// deleted text is remembered and put back struck through once composing ends.
+	if (composing) {
+		if (plan.deletedRanges.length === 0) return tr;
+		const doc = tr.startState.doc.toString();
+		const deletions = plan.deletedRanges.map((r) => ({
+			pos: tr.changes.mapPos(r.from, -1),
+			text: doc.slice(r.from, r.to),
+		}));
+		return [tr, { effects: addPendingDeletions.of(deletions), sequential: true }];
+	}
 	const mainIndex = Math.min(tr.startState.selection.mainIndex, plan.carets.length - 1);
 	const specs: TransactionSpec[] = [
 		{
@@ -564,7 +618,9 @@ const pendingFlush = ViewPlugin.fromClass(
 		}
 
 		update(update: ViewUpdate): void {
-			if (update.state.field(pendingField).size > 0 && !update.view.composing) this.schedule();
+			const waiting =
+				update.state.field(pendingField).size > 0 || update.state.field(pendingDeletionsField).length > 0;
+			if (waiting && !update.view.composing) this.schedule();
 		}
 
 		private schedule = (): void => {
@@ -576,23 +632,34 @@ const pendingFlush = ViewPlugin.fromClass(
 			const { view } = this;
 			if (view.composing) return;
 			const ranges = pendingRanges(view.state);
-			if (ranges.length === 0) return;
+			const deletions = view.state.field(pendingDeletionsField);
+			if (ranges.length === 0 && deletions.length === 0) return;
 			const [changes = [], followUp = []] = planWrapPending(
 				view.state.doc.toString(),
 				ranges,
 				context(view.state),
+				deletions,
 			);
 			const specs: TransactionSpec[] = [
 				{
 					changes,
 					effects: clearPending.of(null),
 					annotations: pluginEdit.of(true),
-					// Joins the typing's undo step, so one undo removes the text with
-					// its markers instead of leaving it behind untracked.
-					userEvent: "input.type",
+					// The history always joins an "input.type.compose" event onto the
+					// previous one (the composed typing), whatever the time or selection
+					// changes in between, so one undo removes the text with its markers
+					// instead of leaving it behind untracked.
+					userEvent: "input.type.compose",
 				},
 			];
-			if (followUp.length) specs.push({ changes: followUp, sequential: true, annotations: pluginEdit.of(true) });
+			if (followUp.length) {
+				specs.push({
+					changes: followUp,
+					sequential: true,
+					annotations: pluginEdit.of(true),
+					userEvent: "input.type.compose",
+				});
+			}
 			view.dispatch(...specs);
 		}
 
@@ -603,5 +670,40 @@ const pendingFlush = ViewPlugin.fromClass(
 	},
 );
 
+/** Typing over a selection with an IME: before the IME starts composing (it
+ *  would replace the selection in the page itself), mark the selected text
+ *  for deletion and put the caret after it, so the composition starts there. */
+const selectionGuard = ViewPlugin.fromClass(
+	class {
+		constructor(private view: EditorView) {
+			view.contentDOM.addEventListener("keydown", this.onKeyDown, true);
+		}
+
+		private onKeyDown = (event: KeyboardEvent): void => {
+			const { view } = this;
+			if (!isSuggesting(view.state) || event.metaKey || event.ctrlKey || event.altKey) return;
+			// "Process" is what an IME reports for the key that starts composing.
+			if (event.key !== "Process" && !event.isComposing) return;
+			if (view.state.selection.ranges.every((r) => r.empty)) return;
+			view.dispatch({
+				changes: view.state.selection.ranges.map((r) => ({ from: r.from, to: r.to })),
+				// "forward": the caret lands after the struck text, where the new
+				// text goes.
+				userEvent: "delete.selection.forward",
+			});
+		};
+
+		destroy(): void {
+			this.view.contentDOM.removeEventListener("keydown", this.onKeyDown, true);
+		}
+	},
+);
+
 /** Everything Suggesting mode needs in the editor. Inert while editing. */
-export const suggestExtension: Extension = [pendingField, suggestFilter, pendingFlush];
+export const suggestExtension: Extension = [
+	pendingField,
+	pendingDeletionsField,
+	suggestFilter,
+	pendingFlush,
+	selectionGuard,
+];
