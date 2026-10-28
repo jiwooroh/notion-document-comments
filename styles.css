@@ -1980,7 +1980,7 @@ body.theme-dark {
 }
 body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert {
 	background-color: transparent;
-	border-bottom: 2px solid color-mix(in srgb, var(--dc-suggest-insert) 70%, transparent);
+	border-bottom: 2px solid color-mix(in srgb, var(--dc-suggest-insert) 55%, transparent);
 	color: var(--dc-suggest-insert);
 	pointer-events: auto;
 }
@@ -1993,13 +1993,35 @@ body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-sp
 	text-decoration-thickness: 1.5px;
 	pointer-events: auto;
 }
-body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert.is-active,
-body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anchor .doc-comment-span.dc-style-suggest-insert {
-	background-color: color-mix(in srgb, var(--dc-suggest-insert) 18%, transparent);
+/* Never a fill — that's what comment highlights look like. Hover / active
+   (and the flash when its card is clicked) darken the line instead. */
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span:is(.dc-style-suggest-insert, .dc-style-suggest-delete),
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span:is(.dc-style-suggest-insert, .dc-style-suggest-delete) .dc-active-anchor {
+	background-color: transparent;
+	animation: none;
 }
-body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-delete.is-active,
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert:is(.is-active, .dc-flash),
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anchor .doc-comment-span.dc-style-suggest-insert {
+	border-bottom-color: var(--dc-suggest-insert);
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-delete:is(.is-active, .dc-flash),
 body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anchor .doc-comment-span.dc-style-suggest-delete {
-	background-color: color-mix(in srgb, var(--dc-suggest-delete) 15%, transparent);
+	text-decoration-thickness: 2.5px;
+}
+
+/* The same inside Live Preview tables and inline HTML, which are painted with
+   CSS Custom Highlights (editor/table-highlights.ts, html-highlights.ts). */
+::highlight(notion-style-comments-table-suggest-insert),
+::highlight(nsc-html-default-suggest-insert) {
+	background-color: transparent;
+	color: var(--dc-suggest-insert);
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-suggest-insert) 55%, transparent);
+}
+::highlight(notion-style-comments-table-suggest-delete),
+::highlight(nsc-html-default-suggest-delete) {
+	background-color: transparent;
+	color: var(--dc-suggest-delete);
+	text-decoration: line-through 1.5px var(--dc-suggest-delete);
 }
 
 /* The card's color indicator follows the kind of edit. */
