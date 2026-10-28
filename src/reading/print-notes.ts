@@ -1,6 +1,6 @@
 import { App, Component, MarkdownPostProcessorContext, MarkdownRenderer } from "obsidian";
 import { ParsedComment, TextRange } from "../format/types";
-import { anchorRange, parseComments } from "../format/parse";
+import { anchorRange, anchorStyle, parseComments } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { wrapAnchor, wrapFirstMatch } from "./highlight";
 import { nudgeMarginNotes } from "./print-stack";
@@ -62,8 +62,8 @@ export const printNotesPostProcessor = async (
 		// A code comment's lines each sit in their own text node; prose is one match.
 		const needles = isCodeComment(c) ? anchored.split("\n").filter((l) => l.trim()) : [anchored];
 		for (const needle of needles) {
-			if (isCodeComment(c)) wrapFirstMatch(el, needle, c.id, resolved, null, c.color, c.style);
-			else wrapAnchor(el, needle, c.id, resolved, null, c.color, c.style);
+			if (isCodeComment(c)) wrapFirstMatch(el, needle, c.id, resolved, null, c.color, anchorStyle(c));
+			else wrapAnchor(el, needle, c.id, resolved, null, c.color, anchorStyle(c));
 		}
 		if (c.thread.length === 0) continue;
 

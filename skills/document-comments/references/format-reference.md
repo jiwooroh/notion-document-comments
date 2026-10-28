@@ -44,13 +44,14 @@ is one block per comment, linked to the anchor by a shared ID.
 
 The header is the first line of the body block, after `co:ID`. Keys are
 `key:value`, space-separated, in any order. The canonical order the plugin writes
-is `by at status quote`:
+is `by at status suggest quote`:
 
 | Key | Meaning | Notes |
 |---|---|---|
 | `by:` | Author handle | Single token; whitespace becomes `_`. Optional. |
 | `at:` | Creation timestamp | ISO-8601, e.g. `2026-01-15T10:00:00.000Z`. Optional. |
 | `status:` | `open` or `resolved` | Anything other than `resolved` is treated as `open`. |
+| `suggest:` | `insert` or `delete` | Present only on a suggested edit (see below). |
 | `quote:` | Copy of the anchored text | Double-quoted. The re-anchor fallback. |
 
 `quote:` value handling: internal whitespace is collapsed to single spaces and
@@ -60,6 +61,28 @@ same text.
 
 Unrecognized header keys are ignored, and are dropped if the plugin ever
 rewrites the block, so don't rely on custom keys.
+
+## Suggested edits
+
+Suggesting mode stores each suggested edit as a comment whose header has
+`suggest:insert` or `suggest:delete`. The anchored text is the proposed
+addition, or the text proposed for removal (it stays in the file until the
+suggestion is accepted):
+
+```markdown
+We ship <!--c:d4k2-->on Friday<!--/c:d4k2--><!--c:a9x1-->on Thursday<!--/c:a9x1--> after QA.
+<!--co:d4k2 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:delete quote:"on Friday"
+-->
+<!--co:a9x1 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:insert quote:"on Thursday"
+-->
+```
+
+Its thread lines, if any, are replies to the suggestion. To apply one by hand:
+
+| Kind | Accept | Reject |
+|---|---|---|
+| `insert` | Remove the markers and body; keep the text. | Remove the markers, the text, and the body. |
+| `delete` | Remove the markers, the text, and the body. | Remove the markers and body; keep the text. |
 
 ## Thread lines
 
