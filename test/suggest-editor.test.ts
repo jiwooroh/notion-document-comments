@@ -107,3 +107,27 @@ describe("suggesting mode in the editor", () => {
 		expect(state.doc.toString()).toBe("안녕 하세상");
 	});
 });
+
+describe("undo in suggesting mode", () => {
+	test("a suggestion emptied by undo is removed with its card", async () => {
+		const { EditorView } = await import("@codemirror/view");
+		// Obsidian's DOM helper, used by the marker widgets.
+		HTMLElement.prototype.createSpan ??= function (this: HTMLElement, o: DomElementInfo = {}) {
+			const span = this.ownerDocument.createElement("span");
+			if (typeof o.cls === "string") span.className = o.cls;
+			if (o.text !== undefined) span.textContent = String(o.text);
+			this.appendChild(span);
+			return span;
+		};
+		const parent = document.createElement("div");
+		document.body.appendChild(parent);
+		const view = new EditorView({ parent, state: typeChars(make("Hello world", 5), "!") });
+		const c = parseComments(view.state.doc.toString())[0];
+		const from = c?.open?.to ?? 0;
+		// What undoing the typing does when the wrap wasn't in the same undo step.
+		view.dispatch({ changes: { from, to: from + 1 }, userEvent: "undo" });
+		await Promise.resolve();
+		expect(view.state.doc.toString()).toBe("Hello world");
+		view.destroy();
+	});
+});

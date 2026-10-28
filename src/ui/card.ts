@@ -158,6 +158,18 @@ export class Card {
 	}
 
 	update(comment: ParsedComment): void {
+		// Typing inside a suggestion changes only its text: update that one span
+		// instead of rebuilding the card (and re-laying out the margin) per keystroke.
+		if (comment.suggest && cardSignature({ ...this.comment, text: comment.text }) === cardSignature(comment)) {
+			const span = this.el.querySelector(".dc-suggestion__text");
+			const text = suggestionSummary(comment.text ?? comment.quote ?? "");
+			if (span && text) {
+				this.comment = comment;
+				span.setText(text);
+				span.removeClass("is-empty");
+				return;
+			}
+		}
 		this.comment = comment;
 		// Keep an open entry editor across external updates; commit/cancel clear
 		// editingIndex first, so a landed edit still collapses the editor. Only drop
