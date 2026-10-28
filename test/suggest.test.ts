@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { applyChanges, computeResolveAllSuggestions, computeResolveSuggestion } from "../src/editor/edits";
-import { Direction, EditInput, planSuggestedEdits, planWrapPending } from "../src/editor/suggest";
+import { Direction, EditInput, planOpenInsertion, planSuggestedEdits, planWrapPending } from "../src/editor/suggest";
 import { parseComments } from "../src/format/parse";
 
 const ctx = { author: "me", createdAt: "2026-10-28T00:00:00.000Z" };
@@ -97,6 +97,39 @@ describe("suggesting mode", () => {
 		expect(view(doc)).toBe("Hello {-big-}{+small+} world");
 	});
 
+	test("a replacement is one pair: the insertion names the deletion it replaces", () => {
+		const { doc } = run("Hello big world", [{ from: 6, to: 9, insert: "small" }]);
+		const [del, ins] = parseComments(doc);
+		expect(ins?.replaces).toBe(del?.id);
+		expect(ins?.replacedText).toBe("big");
+	});
+
+	test("typing right after deleting pairs with that deletion", () => {
+		let state = { doc: "Hello world", caret: 11 };
+		for (let i = 0; i < 5; i++) {
+			const r = run(state.doc, [{ from: state.caret - 1, to: state.caret, insert: "" }], "backward");
+			state = { doc: r.doc, caret: r.caret };
+		}
+		const typed = type(state.doc, state.caret, "there");
+		expect(view(typed.doc)).toBe("Hello {-world-}{+there+}");
+		expect(parseComments(typed.doc).find((c) => c.suggest === "insert")?.replacedText).toBe("world");
+	});
+
+	test("Delete at the end of a line leaves the caret before the hidden body", () => {
+		const r = run("Hello world", [{ from: 6, to: 11, insert: "" }], "forward");
+		expect(r.doc.slice(r.caret).startsWith("\n<!--co:")).toBe(true);
+	});
+
+	test("an IME gets an empty insertion to compose into", () => {
+		const plan = planOpenInsertion("Hello world", 5, ctx);
+		const doc = applyChanges("Hello world", plan?.changes ?? []);
+		const [c] = parseComments(doc);
+		expect(c?.suggest).toBe("insert");
+		expect(plan?.caret).toBe(c?.open?.to);
+		// Already inside your insertion: just the caret.
+		expect(planOpenInsertion(doc, plan?.caret ?? 0, ctx)?.changes).toEqual([]);
+	});
+
 	test("typing inside struck text goes after the deletion", () => {
 		const first = run("Hello big world", [{ from: 6, to: 9, insert: "" }]);
 		const inner = first.doc.indexOf("big") + 1;
@@ -170,6 +203,15 @@ describe("accepting and rejecting", () => {
 		expect(applyChanges(deleted, computeResolveSuggestion(deleted, id(deleted), false).unwrap())).toBe(
 			"Hello big world",
 		);
+	});
+
+	test("a replacement is accepted and rejected as one", () => {
+		const replaced = run("Hello big world", [{ from: 6, to: 9, insert: "small" }]).doc;
+		const ins = parseComments(replaced).find((c) => c.suggest === "insert")?.id ?? "";
+		expect(applyChanges(replaced, computeResolveSuggestion(replaced, ins, true).unwrap())).toBe(
+			"Hello small world",
+		);
+		expect(applyChanges(replaced, computeResolveSuggestion(replaced, ins, false).unwrap())).toBe("Hello big world");
 	});
 
 	test("accept all / reject all", () => {

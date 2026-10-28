@@ -44,7 +44,7 @@ is one block per comment, linked to the anchor by a shared ID.
 
 The header is the first line of the body block, after `co:ID`. Keys are
 `key:value`, space-separated, in any order. The canonical order the plugin writes
-is `by at status suggest quote`:
+is `by at status suggest replaces quote`:
 
 | Key | Meaning | Notes |
 |---|---|---|
@@ -52,6 +52,7 @@ is `by at status suggest quote`:
 | `at:` | Creation timestamp | ISO-8601, e.g. `2026-01-15T10:00:00.000Z`. Optional. |
 | `status:` | `open` or `resolved` | Anything other than `resolved` is treated as `open`. |
 | `suggest:` | `insert` or `delete` | Present only on a suggested edit (see below). |
+| `replaces:` | Comment ID | On an insertion: the deletion it replaces. Resolve the two together. |
 | `quote:` | Copy of the anchored text | Double-quoted. The re-anchor fallback. |
 
 `quote:` value handling: internal whitespace is collapsed to single spaces and
@@ -73,9 +74,12 @@ suggestion is accepted):
 We ship <!--c:d4k2-->on Friday<!--/c:d4k2--><!--c:a9x1-->on Thursday<!--/c:a9x1--> after QA.
 <!--co:d4k2 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:delete quote:"on Friday"
 -->
-<!--co:a9x1 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:insert quote:"on Thursday"
+<!--co:a9x1 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:insert replaces:d4k2 quote:"on Thursday"
 -->
 ```
+
+An insertion with `replaces:ID` is the new text for the deletion `ID` (a
+replacement). Accept or reject the two together.
 
 Its thread lines, if any, are replies to the suggestion. To apply one by hand:
 
