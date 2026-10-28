@@ -5,6 +5,44 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.19
+
+- **Resolved comments in the status bar menu:** the comment-style menu in the status bar has a "Show resolved comments" checkbox, so you can show or hide resolved comments without opening settings.
+
+![Comment style menu in the status bar](https://raw.githubusercontent.com/jiwooroh/notion-document-comments/main/docs/screenshots/status-menu-0.2.19.jpg)
+
+- **Neutral focus colors:** focused comment boxes, the new-comment card and its text, selected colors and menu items, your own reactions, and the sidebar color filter use a neutral gray instead of the theme's accent color.
+
+![Reply box with a neutral gray focus border](https://raw.githubusercontent.com/jiwooroh/notion-document-comments/main/docs/screenshots/neutral-focus-0.2.19.jpg)
+
+- **Apple color scheme updated:** new text and highlight colors for red, yellow, green, blue, pink, gray, and brown (orange and purple unchanged). See the Apple table in the README for every value, including what each highlight looks like on a light or dark page.
+
+- Editor list lines under a task item (`- [x]`, custom checkboxes) get a `dc-below-task-N` class with their depth below it, so a CSS snippet can restart bullet shapes under a checkbox in Live Preview too.
+
+- New command **Find what makes the note wider than the screen**: outlines in red whatever sticks out past the note's right edge (the usual cause of a blank strip on the right, especially on phones) and names the widest few.
+
+- **PDF export:** no more footnote numbers (each comment sits beside its highlight in the same color), comment text is bigger, and a comment is never split across a page break.
+
+- Fixed checkbox icons (task lists and custom checkboxes, e.g. a bookmark or flame) being cut in half on the left while a long comment is folded to "more".
+
+- Comment cards have slightly less space at the top (10px → 8px; iPad 7px → 6px).
+
+- Settings: a note at the top says every option applies immediately, and that new options after a plugin update appear once you reload Obsidian (⌘R) or reopen Settings. Changing **Author** now re-applies your profile photo right away.
+
+- **Comment style in the status bar:** the 💬 menu at the bottom of Obsidian now also switches the card color indicator (line, colored card, dot, nothing) and the highlight style (highlight, underline, both), not just the card view.
+
+- **New settings:** **Indicator line thickness** (1–8 px) for the colored left edge, and **Colored card strength** (3–40%) for how strongly a Colored card is filled with its comment's color.
+
+- **Line indicator:** the comment's color is now the card's own left edge (its border) instead of a separate bar inside the card.
+
+- Fixed the color and style pickers (⋯ → Change color / Change style) sometimes opening in the window's top-left corner instead of under the card's ⋯ button.
+
+- **Dot indicator:** the color dot lines up with the card's first line (the author row, or the comment text in Compact view) instead of sitting low beside the text like a period, and is slightly bigger.
+
+- **Stronger hover:** hovering a highlight or its card darkens it more clearly than in 0.2.13–0.2.18 (still lighter than before 0.2.13).
+
+- **iPad narrow panes:** when the pane is narrower than about 690px (Split View, Slide Over, a narrow split), the comment column is no longer reserved; cards hide and appear when you tap a highlight, like a narrow window on desktop.
+
 ## 0.2.18
 
 - Addressed the Obsidian review warnings: dev-tool dependencies updated (no high or critical vulnerabilities left), `!important` removed from the stylesheet except where it must win over Obsidian's print styles or a note snippet's own `!important`, no `all: unset`, and the README credits the original author without linking a same-named repository.
