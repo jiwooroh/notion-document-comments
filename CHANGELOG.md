@@ -5,7 +5,7 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
-## 0.2.20
+## 0.3.0
 
 - **Suggesting mode** (like Notion's "Suggest edits" and Google Docs' "Suggesting"): switch a note between **Editing** and **Suggesting**. While suggesting, your edits are proposed instead of made:
   - What you type is a suggested **addition**, in teal with an underline.
