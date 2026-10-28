@@ -214,7 +214,7 @@ Text + highlight uses the text color on its matching highlight (e.g. light-mode 
 
 ## 0.2.0
 
-First release of Lucy's fork, based on the original plugin's 0.1.12 by Kyle McDonald.
+First release of Jiwoo's fork, based on the original plugin's 0.1.12 by Kyle McDonald.
 
 - **Text formatting toolbar in comments:** select text in a comment box to apply bold, italic, underline, strikethrough, text color, or highlight.
 - **Highlight colors:** theme default or 9 Notion-style colors, an intensity slider, and custom hex values per color for light and dark themes.
