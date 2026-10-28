@@ -1,4 +1,4 @@
-import { CommentData, CommentStatus, ParsedComment, Reaction, TextRange, ThreadEntry } from "./types";
+import { CommentData, CommentStatus, ParsedComment, Reaction, SuggestionKind, TextRange, ThreadEntry } from "./types";
 import { decodeCodeQuote, splitReactionAuthors, unescapeText } from "./escape";
 
 // Anchor + body markers. All are HTML comments so they're invisible everywhere.
@@ -67,6 +67,8 @@ export const parseComments = (doc: string): ParsedComment[] => {
 	return order.map((id) => {
 		const body = bodies.get(id);
 		const data: CommentData = body ? body.data : { status: "open", thread: [], reactions: [] };
+		const open = opens.get(id) ?? null;
+		const close = closes.get(id) ?? null;
 		return {
 			id,
 			author: data.author,
@@ -76,13 +78,22 @@ export const parseComments = (doc: string): ParsedComment[] => {
 			codeLines: data.codeLines,
 			color: data.color,
 			style: data.style,
+			suggest: data.suggest,
 			thread: data.thread,
 			reactions: data.reactions,
-			open: opens.get(id) ?? null,
-			close: closes.get(id) ?? null,
+			open,
+			close,
 			body: body ? body.range : null,
+			...(data.suggest && open && close && open.to <= close.from
+				? { text: stripMarkers(doc.slice(open.to, close.from)) }
+				: {}),
 		};
 	});
+};
+
+/** Text with any nested comment markers and bodies removed — what a reader sees. */
+export const stripMarkers = (text: string): string => {
+	return text.replace(/<!--\/?c:[A-Za-z0-9]+-->/g, "").replace(/\n?<!--co:[A-Za-z0-9]+[\s\S]*?-->/g, "");
 };
 
 /** The set of ids already present in a document (for id generation). */
@@ -142,7 +153,23 @@ const parseHeader = (header: string): Omit<CommentData, "thread" | "reactions"> 
 		codeLines,
 		color: attrs.color,
 		style: attrs.style,
+		suggest: parseSuggest(attrs.suggest),
 	};
+};
+
+const parseSuggest = (value: string | undefined): SuggestionKind | undefined => {
+	return value === "insert" || value === "delete" ? value : undefined;
+};
+
+/** A suggested edit (an insertion or a deletion) rather than a remark. */
+export const isSuggestion = (c: ParsedComment): boolean => {
+	return c.suggest !== undefined;
+};
+
+/** The annotation-style id the anchor is drawn with. A suggestion is always
+ *  drawn as one (`suggest-insert` / `suggest-delete`), whatever its override. */
+export const anchorStyle = (c: Pick<CommentData, "style" | "suggest">): string | undefined => {
+	return c.suggest ? `suggest-${c.suggest}` : c.style;
 };
 
 /** Parse a `line:F-T` (or `line:F`) header value into an inclusive line range. */

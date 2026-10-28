@@ -1,6 +1,6 @@
 import type { MarkdownPostProcessorContext } from "obsidian";
 import { ParsedComment } from "../format/types";
-import { anchorRange, fencedRanges, isHighlight, parseComments } from "../format/parse";
+import { anchorRange, anchorStyle, fencedRanges, isHighlight, parseComments } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { commentPreview } from "../format/preview";
 
@@ -104,7 +104,15 @@ export const highlightPostProcessor = (el: HTMLElement, ctx: MarkdownPostProcess
 			if (!target || target.from < sectionFrom || target.from >= sectionTo) continue;
 			for (const lineText of text.slice(target.from, target.to).split("\n")) {
 				if (lineText.trim())
-					wrapFirstMatch(el, lineText, c.id, c.status === "resolved", commentPreview(c), c.color, c.style);
+					wrapFirstMatch(
+						el,
+						lineText,
+						c.id,
+						c.status === "resolved",
+						commentPreview(c),
+						c.color,
+						anchorStyle(c),
+					);
 			}
 			continue;
 		}
@@ -116,7 +124,7 @@ export const highlightPostProcessor = (el: HTMLElement, ctx: MarkdownPostProcess
 			// still shows instead of silently disappearing.
 			const at = c.close?.from ?? c.open?.to;
 			if (at === undefined || !c.quote || at < sectionFrom || at > sectionTo) continue;
-			wrapRenderedMatch(el, c.quote, c.id, c.status === "resolved", commentPreview(c), c.color, c.style);
+			wrapRenderedMatch(el, c.quote, c.id, c.status === "resolved", commentPreview(c), c.color, anchorStyle(c));
 			continue;
 		}
 		// Only act on comments whose anchor starts within this rendered section.
@@ -127,10 +135,10 @@ export const highlightPostProcessor = (el: HTMLElement, ctx: MarkdownPostProcess
 		const codeText = inlineCodeText(quote);
 		if (codeText !== null) {
 			const code = inlineCodeElement(el, sectionSource, range.from - sectionFrom, codeText);
-			if (code) wrapFirstMatch(code, codeText, c.id, c.status === "resolved", preview, c.color, c.style);
+			if (code) wrapFirstMatch(code, codeText, c.id, c.status === "resolved", preview, c.color, anchorStyle(c));
 			continue;
 		}
-		wrapAnchor(el, quote, c.id, c.status === "resolved", preview, c.color, c.style);
+		wrapAnchor(el, quote, c.id, c.status === "resolved", preview, c.color, anchorStyle(c));
 	}
 };
 

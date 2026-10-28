@@ -1961,3 +1961,83 @@ body.dc-pdf-cards .dc-narrow .doc-comment-margin .doc-comment-card.dc-pdf-open::
 	left: auto;
 	right: calc(-1 * var(--dc-pin-width) - 6px);
 }
+
+/* ---------- Suggesting mode ----------
+   A suggestion is a comment anchor drawn as an edit: suggested additions in
+   green with an underline, suggested deletions struck through in red (see
+   editor/suggest.ts). The :is() bumps specificity past the "comments hidden"
+   rule above — a suggestion is a change to the text, so it stays visible. */
+body {
+	--dc-suggest-insert: var(--color-green);
+	--dc-suggest-delete: var(--color-red);
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert {
+	background-color: color-mix(in srgb, var(--dc-suggest-insert) 8%, transparent);
+	border-bottom: 2px solid color-mix(in srgb, var(--dc-suggest-insert) 70%, transparent);
+	color: var(--dc-suggest-insert);
+	pointer-events: auto;
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-delete {
+	background-color: color-mix(in srgb, var(--dc-suggest-delete) 6%, transparent);
+	border-bottom-color: transparent;
+	color: color-mix(in srgb, var(--dc-suggest-delete) 75%, var(--text-normal));
+	text-decoration: line-through;
+	text-decoration-color: var(--dc-suggest-delete);
+	text-decoration-thickness: 1.5px;
+	pointer-events: auto;
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert.is-active,
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anchor .doc-comment-span.dc-style-suggest-insert {
+	background-color: color-mix(in srgb, var(--dc-suggest-insert) 18%, transparent);
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-delete.is-active,
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anchor .doc-comment-span.dc-style-suggest-delete {
+	background-color: color-mix(in srgb, var(--dc-suggest-delete) 15%, transparent);
+}
+
+/* The card's color indicator follows the kind of edit. */
+.doc-comment-card.dc-card--suggest-insert {
+	--dc-highlight-border: var(--dc-suggest-insert);
+}
+.doc-comment-card.dc-card--suggest-delete {
+	--dc-highlight-border: var(--dc-suggest-delete);
+}
+.dc-suggestion__body {
+	margin-top: 2px;
+	font-size: var(--font-ui-small);
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+.dc-suggestion__verb {
+	margin-right: 6px;
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+}
+.dc-suggestion__text--insert {
+	color: var(--dc-suggest-insert);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--dc-suggest-insert) 60%, transparent);
+	text-underline-offset: 2px;
+}
+.dc-suggestion__text--delete {
+	color: color-mix(in srgb, var(--dc-suggest-delete) 75%, var(--text-normal));
+	text-decoration: line-through;
+	text-decoration-color: var(--dc-suggest-delete);
+}
+.dc-suggestion__text.is-empty {
+	font-style: italic;
+	text-decoration: none;
+}
+/* Accept / Reject are tinted like the edit they apply. */
+.dc-entry__bar .dc-act.dc-act--accept {
+	color: var(--dc-suggest-insert);
+}
+.dc-entry__bar .dc-act.dc-act--reject {
+	color: var(--dc-suggest-delete);
+}
+
+/* Status bar: the current mode, highlighted while suggesting. */
+.dc-edit-mode-status.is-suggesting {
+	color: var(--dc-suggest-insert);
+	font-weight: var(--font-semibold);
+}

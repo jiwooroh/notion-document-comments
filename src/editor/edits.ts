@@ -262,7 +262,7 @@ const replaceBody = (
 	return Result.ok([{ from: c.body.from, to: c.body.to, insert: serializeBody(id, data) }]);
 };
 
-const toData = (c: ParsedComment): CommentData => {
+export const toData = (c: ParsedComment): CommentData => {
 	return {
 		author: c.author,
 		createdAt: c.createdAt,
@@ -271,6 +271,7 @@ const toData = (c: ParsedComment): CommentData => {
 		codeLines: c.codeLines,
 		color: c.color,
 		style: c.style,
+		suggest: c.suggest,
 		thread: c.thread,
 		reactions: c.reactions,
 	};
@@ -332,6 +333,80 @@ export const computeDeleteComment = (doc: string, id: string): Result<Change[], 
 	if (ranges.length === 0) return Result.err("Nothing to delete.");
 	ranges.sort((a, b) => a.from - b.from);
 	return Result.ok(ranges);
+};
+
+/** Accept or reject a suggested edit. Accepting an insertion (or rejecting a
+ *  deletion) keeps the anchored text and drops only the suggestion's markers
+ *  and body — the same edit as deleting a comment. Accepting a deletion (or
+ *  rejecting an insertion) removes the anchored text too. */
+export const computeResolveSuggestion = (doc: string, id: string, accept: boolean): Result<Change[], string> => {
+	const comments = parseComments(doc);
+	const target = comments.find((c) => c.id === id);
+	if (!target) return Result.err("Suggestion not found.");
+	if (!target.suggest) return Result.err("That comment isn't a suggestion.");
+	const keepText = (target.suggest === "insert") === accept;
+	if (keepText) return computeDeleteComment(doc, id);
+	if (!target.open || !target.close || target.open.to > target.close.from) {
+		return Result.err("The suggested text can't be found.");
+	}
+	return Result.ok(removeSpan(doc, comments, target.open.from, target.close.to));
+};
+
+/** Accept or reject every suggestion in the document, one at a time on the
+ *  updated text (suggestions can nest), as a single minimal change. */
+export const computeResolveAllSuggestions = (doc: string, accept: boolean): Result<Change[], string> => {
+	let next = doc;
+	const done = new Set<string>();
+	for (;;) {
+		const target = parseComments(next).find((c) => c.suggest && !done.has(c.id));
+		if (!target) break;
+		done.add(target.id);
+		const result = computeResolveSuggestion(next, target.id, accept);
+		if (result.isOk()) next = applyChanges(next, result.value);
+	}
+	if (done.size === 0) return Result.err("No suggestions in this note.");
+	return Result.ok(diffChange(doc, next));
+};
+
+/** Remove [from, to) — a suggestion's markers and text — together with the
+ *  body of that suggestion and of every comment wholly inside the span. A
+ *  marker or body inside the span that belongs to a comment reaching outside
+ *  it is kept, so that comment's anchor survives around the remaining text. */
+const removeSpan = (doc: string, comments: ParsedComment[], from: number, to: number): Change[] => {
+	const inside = (r: { from: number; to: number } | null): boolean => !!r && r.from >= from && r.to <= to;
+	const contained = comments.filter((c) => inside(c.open) && inside(c.close));
+	const containedIds = new Set(contained.map((c) => c.id));
+	const kept = comments
+		.filter((c) => !containedIds.has(c.id))
+		.flatMap((c) => [c.open, c.close, c.body])
+		.filter((r): r is { from: number; to: number } => inside(r))
+		.sort((a, b) => a.from - b.from);
+	const changes: Change[] = [];
+	let cursor = from;
+	for (const r of kept) {
+		if (r.from > cursor) changes.push({ from: cursor, to: r.from, insert: "" });
+		cursor = Math.max(cursor, r.to);
+	}
+	if (to > cursor) changes.push({ from: cursor, to, insert: "" });
+	for (const c of contained) {
+		if (!c.body || inside(c.body)) continue;
+		const lead = doc.charCodeAt(c.body.from - 1) === 10 ? (doc.charCodeAt(c.body.from - 2) === 13 ? 2 : 1) : 0;
+		changes.push({ from: c.body.from - lead, to: c.body.to, insert: "" });
+	}
+	return changes.sort((a, b) => a.from - b.from);
+};
+
+/** The single change turning `before` into `after`: everything between their
+ *  common prefix and common suffix. Empty when they're equal. */
+export const diffChange = (before: string, after: string): Change[] => {
+	if (before === after) return [];
+	let start = 0;
+	const max = Math.min(before.length, after.length);
+	while (start < max && before.charCodeAt(start) === after.charCodeAt(start)) start++;
+	let end = 0;
+	while (end < max - start && before.charCodeAt(before.length - 1 - end) === after.charCodeAt(after.length - 1 - end))
+		end++;
+	return [{ from: start, to: before.length - end, insert: after.slice(start, after.length - end) }];
 };
 
 /** Invoke `fn(from, to)` for every match of a global regex. Stateful cursor scan. */

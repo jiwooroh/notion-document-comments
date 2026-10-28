@@ -9,6 +9,7 @@ import {
 	Change,
 	computeAppendReply,
 	computeDeleteComment,
+	computeResolveSuggestion,
 	computeDeleteEntry,
 	computeEditEntry,
 	computeSetColor,
@@ -87,6 +88,7 @@ export class CommentsSidebarView extends ItemView {
 			setColor: (id, colorId) => void this.edit((doc) => computeSetColor(doc, id, colorId)),
 			setStyle: (id, styleId) => void this.edit((doc) => computeSetStyle(doc, id, styleId)),
 			remove: (id) => void this.edit((doc) => computeDeleteComment(doc, id)),
+			resolveSuggestion: (id, accept) => void this.edit((doc) => computeResolveSuggestion(doc, id, accept)),
 			editEntry: (id, index, text) => void this.edit((doc) => computeEditEntry(doc, id, index, text)),
 			deleteEntry: (id, index) => void this.edit((doc) => computeDeleteEntry(doc, id, index)),
 			toggleReaction: (id, emoji) =>

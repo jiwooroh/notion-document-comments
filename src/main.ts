@@ -18,7 +18,8 @@ import { marginPlugin } from "./editor/margin";
 import { commentConfig } from "./editor/config";
 import { editorLayoutField } from "./editor/layout";
 import { draftField, setDraft } from "./editor/draft";
-import { addComment, insertCommentInFile } from "./editor/commands";
+import { addComment, insertCommentInFile, resolveAllSuggestions } from "./editor/commands";
+import { suggestExtension } from "./editor/suggest";
 import { findHighlightAtSelection } from "./editor/edits";
 import { findSectionRange, highlightPostProcessor, mapReadingSelection } from "./reading/highlight";
 import { ReadingDeps, ReadingMarginManager } from "./reading/margin";
@@ -53,6 +54,7 @@ export default class DocCommentsPlugin extends Plugin {
 	private sidebarOpen = false;
 	private textToolbar: TextFormatToolbar | null = null;
 	private cardViewStatus: HTMLElement | null = null;
+	private editModeStatus: HTMLElement | null = null;
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -73,6 +75,7 @@ export default class DocCommentsPlugin extends Plugin {
 			htmlHighlightPlugin,
 			activeAnchorField,
 			draftField,
+			suggestExtension,
 			commentConfig.of({
 				app: this.app,
 				renderMarkdown: (markdown, el) =>
@@ -90,6 +93,7 @@ export default class DocCommentsPlugin extends Plugin {
 				sidebarOpen: () => this.sidebarOpen,
 				openInSidebar: (id) => void this.revealComment(id),
 				isMobile: () => Platform.isPhone,
+				suggesting: () => this.settings.editMode === "suggest",
 			}),
 			// Reflects dc-has / dc-highlights / dc-hide-resolved onto .cm-editor so the
 			// stylesheet caps the text column without a :has() selector.
@@ -235,6 +239,45 @@ export default class DocCommentsPlugin extends Plugin {
 			menu.showAtMouseEvent(evt);
 		});
 		this.applyCardView();
+
+		// Status bar: Editing / Suggesting, click to switch (Notion's mode menu).
+		this.editModeStatus = this.addStatusBarItem();
+		this.editModeStatus.addClass("mod-clickable", "dc-edit-mode-status");
+		this.editModeStatus.setAttribute("aria-label", "Editing mode");
+		this.registerDomEvent(this.editModeStatus, "click", (evt) => {
+			const menu = new Menu();
+			for (const [id, label] of [
+				["edit", "Editing (change the text directly)"],
+				["suggest", "Suggesting (edits become suggestions)"],
+			] as const) {
+				menu.addItem((item) =>
+					item
+						.setTitle(label)
+						.setChecked(this.settings.editMode === id)
+						.onClick(() => void this.setEditMode(id)),
+				);
+			}
+			menu.showAtMouseEvent(evt);
+		});
+		this.applyEditMode();
+
+		this.addCommand({
+			id: "toggle-suggesting",
+			name: "Toggle suggesting mode",
+			callback: () => void this.setEditMode(this.settings.editMode === "suggest" ? "edit" : "suggest"),
+		});
+
+		this.addCommand({
+			id: "accept-all-suggestions",
+			name: "Accept all suggestions in this note",
+			editorCallback: (editor) => this.resolveAllSuggestions(editor, true),
+		});
+
+		this.addCommand({
+			id: "reject-all-suggestions",
+			name: "Reject all suggestions in this note",
+			editorCallback: (editor) => this.resolveAllSuggestions(editor, false),
+		});
 
 		this.addCommand({
 			id: "toggle-print-comments",
@@ -447,6 +490,34 @@ export default class DocCommentsPlugin extends Plugin {
 		this.applyCardView();
 	}
 
+	async setEditMode(mode: string): Promise<void> {
+		this.settings.editMode = mode;
+		await this.saveSettings();
+		this.applyEditMode();
+		new Notice(mode === "suggest" ? "Suggesting: your edits become suggestions" : "Editing");
+	}
+
+	/** Status bar label and a body class for the Suggesting caret/indicator. */
+	applyEditMode(): void {
+		const suggesting = this.settings.editMode === "suggest";
+		activeDocument.body.toggleClass("dc-suggesting", suggesting);
+		this.editModeStatus?.setText(suggesting ? "💡 Suggesting" : "✏️ Editing");
+		this.editModeStatus?.toggleClass("is-suggesting", suggesting);
+	}
+
+	private resolveAllSuggestions(editor: Editor, accept: boolean): void {
+		const view = editorView(editor);
+		if (!view) {
+			new Notice("Couldn't access the editor.");
+			return;
+		}
+		resolveAllSuggestions(view, accept).match({
+			ok: (count) =>
+				new Notice(`${accept ? "Accepted" : "Rejected"} ${count} suggestion${count === 1 ? "" : "s"}`),
+			err: (message) => new Notice(message),
+		});
+	}
+
 	/** Compact cards: a body class the stylesheet keys off (no re-render). */
 	/** See insideLineStartMarkup (format/line-start.ts). Only writes when needed. */
 	private async fixLineStartMarkers(file: TFile): Promise<void> {
@@ -561,7 +632,7 @@ export default class DocCommentsPlugin extends Plugin {
 	onunload(): void {
 		this.readingManager?.destroy();
 		this.textToolbar?.destroy();
-		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple", "dc-compact-cards");
+		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple", "dc-compact-cards", "dc-suggesting");
 		clearProfile();
 	}
 
