@@ -2041,3 +2041,8 @@ body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anch
 	color: var(--dc-suggest-insert);
 	font-weight: var(--font-semibold);
 }
+
+/* Ribbon / note-header mode button: tinted while suggesting. */
+.dc-edit-mode-button.is-active {
+	color: var(--dc-suggest-insert);
+}

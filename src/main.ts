@@ -10,6 +10,7 @@ import {
 	TFile,
 	WorkspaceLeaf,
 	debounce,
+	setIcon,
 } from "obsidian";
 import { Result } from "better-result";
 import { EditorView } from "@codemirror/view";
@@ -55,6 +56,9 @@ export default class DocCommentsPlugin extends Plugin {
 	private textToolbar: TextFormatToolbar | null = null;
 	private cardViewStatus: HTMLElement | null = null;
 	private editModeStatus: HTMLElement | null = null;
+	private editModeRibbon: HTMLElement | null = null;
+	/** The Editing / Suggesting button in each open note's header. */
+	private editModeActions = new Map<MarkdownView, HTMLElement>();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -264,7 +268,7 @@ export default class DocCommentsPlugin extends Plugin {
 		this.addCommand({
 			id: "toggle-suggesting",
 			name: "Toggle suggesting mode",
-			callback: () => void this.setEditMode(this.settings.editMode === "suggest" ? "edit" : "suggest"),
+			callback: () => void this.toggleEditMode(),
 		});
 
 		this.addCommand({
@@ -309,6 +313,12 @@ export default class DocCommentsPlugin extends Plugin {
 		);
 		this.updateRibbon();
 		this.addRibbonIcon("messages-square", "Open comments sidebar", () => void this.activateSidebar());
+		// The status bar doesn't exist on iPad and phones, so the mode switch is
+		// also in the ribbon and in each note's header (where Notion puts it).
+		this.editModeRibbon = this.addRibbonIcon("pencil", "Switch to suggesting", () => void this.toggleEditMode());
+		this.app.workspace.onLayoutReady(() => this.addEditModeActions());
+		this.registerEvent(this.app.workspace.on("layout-change", () => this.addEditModeActions()));
+		this.applyEditMode();
 
 		this.addSettingTab(new DocCommentsSettingTab(this.app, this));
 		this.textToolbar = new TextFormatToolbar();
@@ -497,12 +507,44 @@ export default class DocCommentsPlugin extends Plugin {
 		new Notice(mode === "suggest" ? "Suggesting: your edits become suggestions" : "Editing");
 	}
 
-	/** Status bar label and a body class for the Suggesting caret/indicator. */
+	private toggleEditMode(): Promise<void> {
+		return this.setEditMode(this.settings.editMode === "suggest" ? "edit" : "suggest");
+	}
+
+	/** Status bar label, ribbon and note-header buttons, and a body class. */
 	applyEditMode(): void {
 		const suggesting = this.settings.editMode === "suggest";
 		activeDocument.body.toggleClass("dc-suggesting", suggesting);
 		this.editModeStatus?.setText(suggesting ? "💡 Suggesting" : "✏️ Editing");
 		this.editModeStatus?.toggleClass("is-suggesting", suggesting);
+		const buttons = [this.editModeRibbon, ...this.editModeActions.values()];
+		for (const el of buttons) {
+			if (!el) continue;
+			setIcon(el, suggesting ? "lightbulb" : "pencil");
+			el.setAttribute(
+				"aria-label",
+				suggesting ? "Suggesting — switch to editing" : "Editing — switch to suggesting",
+			);
+			el.toggleClass("is-active", suggesting);
+			el.addClass("dc-edit-mode-button");
+		}
+	}
+
+	/** Add the mode button to notes opened since the last layout change, and
+	 *  forget notes that were closed. */
+	private addEditModeActions(): void {
+		for (const view of Array.from(this.editModeActions.keys())) {
+			if (!view.containerEl.isConnected) this.editModeActions.delete(view);
+		}
+		let added = false;
+		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+			const view = leaf.view;
+			if (!(view instanceof MarkdownView) || this.editModeActions.has(view)) continue;
+			const el = view.addAction("pencil", "Editing — switch to suggesting", () => void this.toggleEditMode());
+			this.editModeActions.set(view, el);
+			added = true;
+		}
+		if (added) this.applyEditMode();
 	}
 
 	private resolveAllSuggestions(editor: Editor, accept: boolean): void {
@@ -634,6 +676,8 @@ export default class DocCommentsPlugin extends Plugin {
 		this.textToolbar?.destroy();
 		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple", "dc-compact-cards", "dc-suggesting");
 		clearProfile();
+		for (const el of this.editModeActions.values()) el.remove();
+		this.editModeActions.clear();
 	}
 
 	private authorName(): string {

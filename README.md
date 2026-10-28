@@ -27,7 +27,7 @@ Like Notion's **Suggest edits** and Google Docs' **Suggesting**, switch a note f
 
 Each suggestion gets a card beside the text with who suggested it, what it adds or deletes, and **✓ Accept** / **✕ Reject**. Click the card to reply to a suggestion, like any comment. Accepting an addition (or rejecting a deletion) keeps the text; accepting a deletion (or rejecting an addition) removes it.
 
-- Switch modes from **✏️ Editing / 💡 Suggesting** in the status bar, the **Toggle suggesting mode** command, or **Editing mode** in settings.
+- Switch modes with the ✏️ / 💡 button at the top of each note or in the ribbon (it works on iPad and phones too), **✏️ Editing / 💡 Suggesting** in the desktop status bar, the **Toggle suggesting mode** command, or **Editing mode** in settings.
 - Keep typing to grow your suggestion; Backspace inside your own suggested text really deletes it, and deleting all of it removes the suggestion.
 - Korean, Japanese, and Chinese input works: composed text is marked once the input method finishes each word.
 - **Accept all suggestions in this note** and **Reject all suggestions in this note** resolve them in one step.
@@ -343,7 +343,7 @@ Use **Toggle comments** to show or hide all cards and highlights. Use **Toggle r
 
 ### Suggest edits
 
-1. Click **✏️ Editing** in the status bar and choose **Suggesting**, or run **Toggle suggesting mode**.
+1. Click the ✏️ button at the top of the note (or in the ribbon, or **✏️ Editing** in the desktop status bar), or run **Toggle suggesting mode**. It turns into 💡 while suggesting.
 2. Edit the note. Additions and deletions become suggestions with their own cards.
 3. Use **✓** or **✕** on a card to accept or reject one suggestion, or run **Accept all suggestions in this note** / **Reject all suggestions in this note**.
 
