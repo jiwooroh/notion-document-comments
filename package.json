@@ -1,6 +1,6 @@
 {
 	"name": "notion-style-comments",
-	"version": "0.2.18",
+	"version": "0.2.19",
 	"description": "Notion-style margin comments for Obsidian, stored inline in markdown.",
 	"main": "main.js",
 	"scripts": {
@@ -18,7 +18,7 @@
 	"keywords": [
 		"obsidian-plugin"
 	],
-	"author": "Jiwoo Roh",
+	"author": "Lucy Roh",
 	"license": "MIT",
 	"devDependencies": {
 		"@codemirror/language": "^6.12.4",

@@ -58,7 +58,7 @@ Choose how commented text is marked in your notes.
 <details>
 <summary>Color codes for both schemes</summary>
 
-**Text** colors the underline, hover tint, and colored comment text. **Highlight** is the fill behind commented text (at 0% intensity). Apple's highlights are translucent: the last two digits are opacity (`26` = 15%, `33` = 20%). For text + background, use a color's text value on its own highlight, for example `#DE2E21` on `#DE2E2126`.
+**Text** colors the underline, hover tint, and colored comment text. **Highlight** is the fill behind commented text (at 0% intensity). Apple's highlights are translucent: the last two digits are opacity (`26` = 15%, `33` = 20%). For text + background, use a color's text value on its own highlight, for example `#EC1313` on `#EC131326`. "What you see" is that translucent highlight over a white (light) or dark page.
 
 ##### Notion
 
@@ -77,18 +77,18 @@ Choose how commented text is marked in your notes.
 
 ##### Apple
 
-| Color | Text: light | Text: dark | Highlight: light | Highlight: dark |
-|---|---|---|---|---|
-| Red | `#DE2E21` | `#EC5F55` | `#DE2E2126` | `#EC5F5526` |
-| Orange | `#F09343` | `#F09748` | `#F0934326` | `#F0974826` |
-| Yellow | `#F4C242` | `#F6CE55` | `#F4C24233` | `#F6CE5526` |
-| Green | `#30CF6A` | `#51DB84` | `#30CF6A26` | `#51DB8426` |
-| Blue | `#3869F0` | `#598BF8` | `#3869F026` | `#598BF826` |
-| Purple | `#BB3ED9` | `#CA43EA` | `#BB3ED926` | `#CA43EA26` |
-| Pink | `#ED358E` | `#F75FA8` | `#ED358E26` | `#F75FA826` |
-| Gray | `#9898A0` | `#A0A0A7` | `#9898A026` | `#A0A0A726` |
-| Brown | `#B38C65` | `#B8946F` | `#B38C6526` | `#B8946F26` |
-| Default | theme text | theme text | theme highlight | theme highlight |
+| Color | Text: light | Text: dark | Highlight: light | Highlight: dark | Light: what you see | Dark: what you see |
+|---|---|---|---|---|---|---|
+| Red | `#EC1313` | `#F23636` | `#EC131326` | `#F2363626` | `#FCDCDC` | `#3E2222` |
+| Orange | `#F09343` | `#F09748` | `#F0934326` | `#F0974826` | `#FDEFE3` | `#3D3024` |
+| Yellow | `#F5BA0A` | `#F7CB3B` | `#F5BA0A33` | `#F7CB3B26` | `#FDF1CE` | `#3E3822` |
+| Green | `#5AC5B3` | `#63D7C3` | `#5AC5B326` | `#63D7C326` | `#E6F6F4` | `#283A37` |
+| Blue | `#3B86F7` | `#3F8FF7` | `#3B86F726` | `#3F8FF726` | `#E2EDFE` | `#232F3E` |
+| Purple | `#BB3ED9` | `#CA43EA` | `#BB3ED926` | `#CA43EA26` | `#F5E2F9` | `#38243C` |
+| Pink | `#EB445A` | `#EB4B63` | `#EB445A26` | `#EB4B6326` | `#FCE3E6` | `#3D2528` |
+| Gray | `#8A8A93` | `#9898A0` | `#8A8A9326` | `#9898A026` | `#EEEEEF` | `#303031` |
+| Brown | `#A88457` | `#B89A75` | `#A8845726` | `#B89A7526` | `#F2EDE6` | `#35302B` |
+| Default | theme text | theme text | theme highlight | theme highlight | theme highlight | theme highlight |
 
 </details>
 
@@ -107,7 +107,11 @@ Pair this fork with [Notion Selection Toolbar](https://github.com/jiwooroh/notio
 
 ### Card views
 
-Switch how comment cards look from **💬** in the status bar at the bottom of Obsidian, or in settings (**Comment card view**):
+Switch how comments look from **💬** in the status bar at the bottom of Obsidian: the card view, the card color indicator, the highlight style, and whether resolved comments show. The same choices are in settings, and every change applies right away.
+
+![Comment style menu in the status bar](docs/screenshots/status-menu-0.2.19.jpg)
+
+Card views:
 
 - **Default**: full cards with author, date, buttons, and reactions.
 - **Compact**: only the comment text; click a card to see its buttons.
@@ -115,15 +119,19 @@ Switch how comment cards look from **💬** in the status bar at the bottom of O
 
 ![PDF style card view](docs/screenshots/pdf-style-0.2.14.jpg)
 
-**Card color indicator** (settings) shows each card's highlight color as a line on the left, a colored card, a dot, or nothing, so you can tell which card belongs to which text. In the sidebar, pick one or more colors under Open / Resolved / All to see only those comments.
+**Card color indicator** shows each card's highlight color as a line on the left, a colored card, a dot, or nothing, so you can tell which card belongs to which text. Set the line's thickness (**Indicator line thickness**) and how strongly a colored card is filled (**Colored card strength**) in settings.
+
+Focus borders, the comment you're writing, and selected items use a neutral gray instead of your theme's accent color, so the only colors beside your note are the comments' own.
+
+![Reply box with a neutral gray focus border](docs/screenshots/neutral-focus-0.2.19.jpg) In the sidebar, pick one or more colors under Open / Resolved / All to see only those comments.
 
 ### Comments in PDF export
 
-When you export a note to PDF, each commented passage is highlighted with a footnote number, and its comment (with replies) is printed beside it in a right-hand margin column. Comments on nearby lines are spread around their text without overlapping, and a comment near the bottom of a page starts beside its text and continues on the next page. Turn it off with **Show comments in PDF export** in settings, or run **Toggle comments in PDF export** from the command palette. Resolved comments are included only when **Show resolved comments** is on.
+When you export a note to PDF, each commented passage is highlighted, and its comment (with replies) is printed beside it in a right-hand margin column, in the same color and kept on one page. Comments on nearby lines are spread around their text without overlapping. Turn it off with **Show comments in PDF export** in settings, or run **Toggle comments in PDF export** from the command palette. Resolved comments are included only when **Show resolved comments** is on.
 
 ### Narrow window layout
 
-On desktop, when the window is too narrow for the margin, comment cards hide and appear when you hover over the highlighted text, so the note keeps its full width. (iPad always keeps the column; see below.)
+When the window is too narrow for the margin, comment cards hide and appear when you hover over the highlighted text (on iPad: tap it), so the note keeps its full width. On iPad this happens when the pane is narrower than about 690px, for example in Split View or Slide Over.
 
 ![Narrow window layout](docs/screenshots/narrow-layout.png)
 
@@ -143,7 +151,7 @@ Long comments show in full when there's room. A comment folds to a "more" previe
 
 ![Comment cards beside the note on iPad](docs/screenshots/ipad-0.2.12.webp)
 
-- iPad shows comment cards in the margin, like desktop. When a note has comments, the text narrows so the column always fits beside it.
+- iPad shows comment cards in the margin, like desktop. When a note has comments, the text narrows so the column fits beside it. In a narrow pane (Split View, Slide Over), cards hide and appear when you tap a highlight.
 - Cards are compact on iPad: a 270px column, tighter spacing, and smaller buttons, sitting evenly between the text and the screen edge.
 - Each comment shows just **React** and **⋯**. **Resolve** is in the **⋯** menu; tap the card to reply.
 
