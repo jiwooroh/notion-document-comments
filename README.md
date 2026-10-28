@@ -18,6 +18,22 @@ For more Notion-style editing, check out [Notion Selection Toolbar](https://obsi
 
 ## What this fork adds
 
+### Suggesting mode (suggest edits)
+
+Like Notion's **Suggest edits** and Google Docs' **Suggesting**, switch a note from editing to suggesting so your changes are proposed instead of made:
+
+- **Editing**: you change the text directly, as usual.
+- **Suggesting**: the original text is kept. What you type shows as a suggested addition (green, underlined). What you delete stays in place, struck through in red, as a suggested deletion. Typing over a selection suggests a replacement: the old text struck through, followed by the new text.
+
+Each suggestion gets a card beside the text with who suggested it, what it adds or deletes, and **✓ Accept** / **✕ Reject**. Click the card to reply to a suggestion, like any comment. Accepting an addition (or rejecting a deletion) keeps the text; accepting a deletion (or rejecting an addition) removes it.
+
+- Switch modes from **✏️ Editing / 💡 Suggesting** in the status bar, the **Toggle suggesting mode** command, or **Editing mode** in settings.
+- Keep typing to grow your suggestion; Backspace inside your own suggested text really deletes it, and deleting all of it removes the suggestion.
+- Korean, Japanese, and Chinese input works: composed text is marked once the input method finishes each word.
+- **Accept all suggestions in this note** and **Reject all suggestions in this note** resolve them in one step.
+- Suggestions show in Live Preview, Source view, Reading view, the comments sidebar, and PDF export.
+- Edits inside code, front matter, and link targets are made directly, since a marker there would break the Markdown.
+
 ### Text formatting toolbar in comments
 
 Select text while you write or edit a comment, and a small toolbar appears above the comment box:
@@ -190,6 +206,18 @@ Comments on fenced code blocks use the same format. The comment block also store
 
 A comment's color or style override (set from its **⋯** menu) is stored in the same header, for example `color:blue style:underline`.
 
+A suggested edit (Suggesting mode) is a comment with `suggest:insert` or `suggest:delete` in its header. The anchored text is the suggested addition, or the text suggested for deletion:
+
+```markdown
+We ship <!--c:d4k2-->on Friday<!--/c:d4k2--><!--c:a9x1-->on Thursday<!--/c:a9x1--> after QA.
+<!--co:d4k2 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:delete quote:"on Friday"
+-->
+<!--co:a9x1 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:insert quote:"on Thursday"
+-->
+```
+
+Other Markdown renderers hide the markers and show both the suggested addition and the text suggested for deletion, so nothing is lost before a suggestion is resolved.
+
 An empty comment uses the same markers. Its comment block has no thread lines:
 
 ```markdown
@@ -313,6 +341,12 @@ Use the **Open comments sidebar** command or ribbon icon to show all comments in
 
 Use **Toggle comments** to show or hide all cards and highlights. Use **Toggle resolved comments** to show or hide resolved comments. Use **Toggle comments in PDF export** to include or leave out comments when exporting to PDF.
 
+### Suggest edits
+
+1. Click **✏️ Editing** in the status bar and choose **Suggesting**, or run **Toggle suggesting mode**.
+2. Edit the note. Additions and deletions become suggestions with their own cards.
+3. Use **✓** or **✕** on a card to accept or reject one suggestion, or run **Accept all suggestions in this note** / **Reject all suggestions in this note**.
+
 ### Set the author
 
 Open **Settings → Notion-style Comments**. Set **Author** to the name that the plugin adds to new comments.
@@ -324,6 +358,7 @@ The plugin uses `me` when the Author setting is empty. Your profile photo and **
 | Setting | What it does | Default |
 |---|---|---|
 | Author | Name added to your new comments | `me` |
+| Editing mode | Editing (change the text) or Suggesting (edits become suggestions); also in the status bar | Editing |
 | Profile photo | Small round photo next to your name on your own comments (vault image or link) | None |
 | Show comments | Show the comment cards and highlights | On |
 | Show my profile | Show your name and photo on your own comments | On |
@@ -372,6 +407,8 @@ The plugin does not use the network, telemetry, or accounts. It stores all comme
 - Overlapping comments display correctly, but comments on the same words can be difficult to manage.
 - The sidebar shows an orphaned comment when no matching selected text remains.
 - Live Preview table highlights require browser support for CSS Custom Highlight.
+- Suggesting mode tracks typing, deleting, pasting, and dragging text. Changes made by commands or other plugins (for example, a formatting command that rewrites the line) are applied directly.
+- Suggesting mode is one setting for all notes, not a per-note mode.
 
 ## Development
 

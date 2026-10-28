@@ -15,6 +15,7 @@ export const serializeBody = (id: string, data: CommentData): string => {
 	if (data.author) head.push(`by:${sanitizeToken(data.author)}`);
 	if (data.createdAt) head.push(`at:${sanitizeToken(data.createdAt)}`);
 	head.push(`status:${data.status}`);
+	if (data.suggest) head.push(`suggest:${data.suggest}`);
 	// A code quote must round-trip exactly (it re-anchors to the code); a prose
 	// quote is collapsed for readability.
 	if (data.quote) {

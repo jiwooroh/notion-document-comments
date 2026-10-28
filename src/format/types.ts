@@ -1,5 +1,10 @@
 export type CommentStatus = "open" | "resolved";
 
+/** A suggested edit (Suggesting mode): the anchored text is a proposed
+ *  insertion, or text proposed for deletion. Accepting or rejecting it
+ *  applies the edit or drops it (see editor/edits.ts). */
+export type SuggestionKind = "insert" | "delete";
+
 export type ThreadEntry = {
 	author: string;
 	/** ISO-8601 timestamp, optional (the first entry usually carries it via the header). */
@@ -31,6 +36,8 @@ export type CommentData = {
 	 *  overriding this comment's anchor style. Absent means "follow the plugin-wide
 	 *  default" (settings → Annotation style) — same override pattern as `color`. */
 	style?: string;
+	/** Present when this "comment" is a suggested edit rather than a remark. */
+	suggest?: SuggestionKind;
 	thread: ThreadEntry[];
 	reactions: Reaction[];
 };
@@ -49,4 +56,7 @@ export type ParsedComment = {
 	close: TextRange | null;
 	/** `<!--co:ID ...-->` body block range, or null if missing. */
 	body: TextRange | null;
+	/** A suggestion's current anchored text (between its markers), read live
+	 *  from the document — `quote` is only the re-anchor fallback. */
+	text?: string;
 } & CommentData;

@@ -5,6 +5,8 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+- **Suggesting mode** (like Notion's "Suggest edits"): switch between Editing and Suggesting from the status bar, a command, or settings. While suggesting, typed text becomes a suggested addition and deleted text stays, struck through, as a suggested deletion. Each suggestion has a card with Accept / Reject and replies, and new commands accept or reject every suggestion in a note. Works with Korean, Japanese, and Chinese input. Suggestions are stored as comments with a `suggest:insert` / `suggest:delete` header key.
+
 ## 0.2.18
 
 - Addressed the Obsidian review warnings: dev-tool dependencies updated (no high or critical vulnerabilities left), `!important` removed from the stylesheet except where it must win over Obsidian's print styles or a note snippet's own `!important`, no `all: unset`, and the README credits the original author without linking a same-named repository.
