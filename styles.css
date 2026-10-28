@@ -2048,3 +2048,7 @@ body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anch
 .dc-edit-mode-button.is-active {
 	color: var(--dc-suggest-insert);
 }
+.dc-suggestion__arrow {
+	margin: 0 5px;
+	color: var(--text-faint);
+}

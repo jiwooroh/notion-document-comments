@@ -161,7 +161,7 @@ export class Card {
 		// Typing inside a suggestion changes only its text: update that one span
 		// instead of rebuilding the card (and re-laying out the margin) per keystroke.
 		if (comment.suggest && cardSignature({ ...this.comment, text: comment.text }) === cardSignature(comment)) {
-			const span = this.el.querySelector(".dc-suggestion__text");
+			const span = this.el.querySelector(`.dc-suggestion__text--${comment.suggest}`);
 			const text = suggestionSummary(comment.text ?? comment.quote ?? "");
 			if (span && text) {
 				this.comment = comment;
@@ -448,12 +448,24 @@ export class Card {
 		);
 
 		const body = row.createDiv("dc-suggestion__body");
-		body.createSpan({ cls: "dc-suggestion__verb", text: c.suggest === "insert" ? "Add" : "Delete" });
-		const text = suggestionSummary(c.text ?? c.quote ?? "");
+		const replacing = c.replacedText !== undefined;
 		body.createSpan({
-			cls: `dc-suggestion__text dc-suggestion__text--${c.suggest ?? "insert"}${text ? "" : " is-empty"}`,
-			text: text || "line break",
+			cls: "dc-suggestion__verb",
+			text: replacing ? "Replace" : c.suggest === "insert" ? "Add" : "Delete",
 		});
+		const part = (kind: string, raw: string) => {
+			const text = suggestionSummary(raw);
+			body.createSpan({
+				cls: `dc-suggestion__text dc-suggestion__text--${kind}${text ? "" : " is-empty"}`,
+				// Nothing typed yet (an IME is composing the first character).
+				text: text || (raw === "" ? "…" : "line break"),
+			});
+		};
+		if (replacing) {
+			part("delete", c.replacedText ?? "");
+			body.createSpan({ cls: "dc-suggestion__arrow", text: "→" });
+		}
+		part(c.suggest ?? "insert", c.text ?? c.quote ?? "");
 		if (c.reactions.length > 0) this.renderReactions(row);
 	}
 

@@ -23,7 +23,7 @@ For more Notion-style editing, check out [Notion Selection Toolbar](https://obsi
 Like Notion's **Suggest edits** and Google Docs' **Suggesting**, switch a note from editing to suggesting so your changes are proposed instead of made:
 
 - **Editing**: you change the text directly, as usual.
-- **Suggesting**: the original text is kept. What you type shows as a suggested addition (green, underlined). What you delete stays in place, struck through in gray, as a suggested deletion. Typing over a selection suggests a replacement: the old text struck through, followed by the new text.
+- **Suggesting**: the original text is kept. What you type shows as a suggested addition (green, underlined). What you delete stays in place, struck through in gray, as a suggested deletion. Typing over a selection, or typing right after deleting, suggests a replacement: the old text struck through, followed by the new text, with one **Replace** card that accepts or rejects both.
 
 Each suggestion gets a card beside the text with who suggested it, what it adds or deletes, and **✓ Accept** / **✕ Reject**. Click the card to reply to a suggestion, like any comment. Accepting an addition (or rejecting a deletion) keeps the text; accepting a deletion (or rejecting an addition) removes it.
 
@@ -212,9 +212,11 @@ A suggested edit (Suggesting mode) is a comment with `suggest:insert` or `sugges
 We ship <!--c:d4k2-->on Friday<!--/c:d4k2--><!--c:a9x1-->on Thursday<!--/c:a9x1--> after QA.
 <!--co:d4k2 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:delete quote:"on Friday"
 -->
-<!--co:a9x1 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:insert quote:"on Thursday"
+<!--co:a9x1 by:sam at:2026-06-17T10:00:00.000Z status:open suggest:insert replaces:d4k2 quote:"on Thursday"
 -->
 ```
+
+`replaces:` links an insertion to the deletion it replaces; the pair shows as one **Replace** card.
 
 Other Markdown renderers hide the markers and show both the suggested addition and the text suggested for deletion, so nothing is lost before a suggestion is resolved.
 

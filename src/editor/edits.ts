@@ -1,6 +1,6 @@
 import { Result } from "better-result";
 import { CommentData, ParsedComment, Reaction } from "../format/types";
-import { anchorRange, isAnchored, isHighlight, isInFencedCode, parseComments } from "../format/parse";
+import { anchorRange, isAnchored, isHighlight, isInFencedCode, parseComments, replacedBy } from "../format/parse";
 import { codeSelectionTarget, isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { closeMarker, openMarker, serializeBody } from "../format/serialize";
 import { insideLineStartMarkup } from "../format/line-start";
@@ -272,6 +272,7 @@ export const toData = (c: ParsedComment): CommentData => {
 		color: c.color,
 		style: c.style,
 		suggest: c.suggest,
+		replaces: c.replaces,
 		thread: c.thread,
 		reactions: c.reactions,
 	};
@@ -340,6 +341,18 @@ export const computeDeleteComment = (doc: string, id: string): Result<Change[], 
  *  and body — the same edit as deleting a comment. Accepting a deletion (or
  *  rejecting an insertion) removes the anchored text too. */
 export const computeResolveSuggestion = (doc: string, id: string, accept: boolean): Result<Change[], string> => {
+	// A replacement (a deletion plus the insertion replacing it) resolves as one.
+	const comments = parseComments(doc);
+	const target = comments.find((c) => c.id === id);
+	const partner = target?.replaces ?? replacedBy(comments).get(id);
+	const first = resolveOne(doc, id, accept);
+	if (!partner || first.isErr()) return first;
+	const next = applyChanges(doc, first.value);
+	const second = resolveOne(next, partner, accept);
+	return Result.ok(diffChange(doc, second.isOk() ? applyChanges(next, second.value) : next));
+};
+
+const resolveOne = (doc: string, id: string, accept: boolean): Result<Change[], string> => {
 	const comments = parseComments(doc);
 	const target = comments.find((c) => c.id === id);
 	if (!target) return Result.err("Suggestion not found.");

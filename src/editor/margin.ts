@@ -3,7 +3,7 @@ import { Result } from "better-result";
 import { EditorView, PluginValue, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { foldedRanges } from "@codemirror/language";
 import { ParsedComment } from "../format/types";
-import { anchorRange, hasMarginAnchor } from "../format/parse";
+import { anchorRange, hasMarginAnchor, withoutReplacedDeletions } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { commentField } from "./state";
 import { commentConfig } from "./config";
@@ -184,7 +184,7 @@ class MarginView implements PluginValue {
 		if (!fv) return [];
 		// Resolved cards stay in the DOM and are hidden via a container class, so
 		// toggling visibility never requires rebuilding the editor.
-		return fv.comments.filter(hasMarginAnchor);
+		return withoutReplacedDeletions(fv.comments).filter(hasMarginAnchor);
 	}
 
 	private reconcile(): void {
