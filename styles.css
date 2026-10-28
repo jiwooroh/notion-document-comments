@@ -1964,12 +1964,14 @@ body.dc-pdf-cards .dc-narrow .doc-comment-margin .doc-comment-card.dc-pdf-open::
 
 /* ---------- Suggesting mode ----------
    A suggestion is a comment anchor drawn as an edit: suggested additions in
-   green with an underline, suggested deletions struck through in red (see
+   green with an underline, suggested deletions struck through in gray (see
    editor/suggest.ts). The :is() bumps specificity past the "comments hidden"
    rule above — a suggestion is a change to the text, so it stays visible. */
 body {
 	--dc-suggest-insert: var(--color-green);
-	--dc-suggest-delete: var(--color-red);
+	--dc-suggest-delete: var(--text-faint);
+	/* The Reject button stays red: it's an action, not the deleted text. */
+	--dc-suggest-reject: var(--color-red);
 }
 body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert {
 	background-color: color-mix(in srgb, var(--dc-suggest-insert) 8%, transparent);
@@ -1978,9 +1980,9 @@ body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-sp
 	pointer-events: auto;
 }
 body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-delete {
-	background-color: color-mix(in srgb, var(--dc-suggest-delete) 6%, transparent);
+	background-color: transparent;
 	border-bottom-color: transparent;
-	color: color-mix(in srgb, var(--dc-suggest-delete) 75%, var(--text-normal));
+	color: var(--dc-suggest-delete);
 	text-decoration: line-through;
 	text-decoration-color: var(--dc-suggest-delete);
 	text-decoration-thickness: 1.5px;
@@ -2020,7 +2022,7 @@ body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anch
 	text-underline-offset: 2px;
 }
 .dc-suggestion__text--delete {
-	color: color-mix(in srgb, var(--dc-suggest-delete) 75%, var(--text-normal));
+	color: var(--dc-suggest-delete);
 	text-decoration: line-through;
 	text-decoration-color: var(--dc-suggest-delete);
 }
@@ -2033,7 +2035,7 @@ body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anch
 	color: var(--dc-suggest-insert);
 }
 .dc-entry__bar .dc-act.dc-act--reject {
-	color: var(--dc-suggest-delete);
+	color: var(--dc-suggest-reject);
 }
 
 /* Status bar: the current mode, highlighted while suggesting. */

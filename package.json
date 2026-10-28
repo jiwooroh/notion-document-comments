@@ -18,7 +18,7 @@
 	"keywords": [
 		"obsidian-plugin"
 	],
-	"author": "Lucy Roh",
+	"author": "Jiwoo Roh",
 	"license": "MIT",
 	"devDependencies": {
 		"@codemirror/language": "^6.12.4",

@@ -137,6 +137,16 @@ describe("suggesting mode", () => {
 		const out = applyChanges(applyChanges(typed, changes), followUp);
 		expect(view(out)).toBe("안녕 {+하세요 +}세상");
 	});
+
+	test("text a composition replaced comes back struck through before the new text", () => {
+		// "안녕 세상" with "세상" selected, then "하나" composed over it.
+		const typed = "안녕 하나";
+		const [changes = [], followUp = []] = planWrapPending(typed, [{ from: 3, to: 5 }], ctx, [
+			{ pos: 3, text: "세상" },
+		]);
+		const out = applyChanges(applyChanges(typed, changes), followUp);
+		expect(view(out)).toBe("안녕 {-세상-}{+하나+}");
+	});
 });
 
 describe("accepting and rejecting", () => {
