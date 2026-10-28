@@ -3,7 +3,7 @@ import { Result } from "better-result";
 import { EditorView, PluginValue, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { foldedRanges } from "@codemirror/language";
 import { ParsedComment } from "../format/types";
-import { anchorRange, hasMarginAnchor } from "../format/parse";
+import { anchorRange, hasMarginAnchor, withoutReplacedDeletions } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { commentField } from "./state";
 import { commentConfig } from "./config";
@@ -14,6 +14,7 @@ import {
 	addComment,
 	appendReply,
 	deleteComment,
+	resolveSuggestion,
 	deleteEntry,
 	editEntry,
 	setColor,
@@ -96,6 +97,7 @@ class MarginView implements PluginValue {
 			setColor: (id, colorId) => notifyErr(setColor(view, id, colorId)),
 			setStyle: (id, styleId) => notifyErr(setStyle(view, id, styleId)),
 			remove: (id) => notifyErr(deleteComment(view, id)),
+			resolveSuggestion: (id, accept) => notifyErr(resolveSuggestion(view, id, accept)),
 			editEntry: (id, index, text) => notifyErr(editEntry(view, id, index, text)),
 			deleteEntry: (id, index) => notifyErr(deleteEntry(view, id, index)),
 			toggleReaction: (id, emoji) => notifyErr(toggleReaction(view, id, emoji, this.cb.getAuthor())),
@@ -182,7 +184,7 @@ class MarginView implements PluginValue {
 		if (!fv) return [];
 		// Resolved cards stay in the DOM and are hidden via a container class, so
 		// toggling visibility never requires rebuilding the editor.
-		return fv.comments.filter(hasMarginAnchor);
+		return withoutReplacedDeletions(fv.comments).filter(hasMarginAnchor);
 	}
 
 	private reconcile(): void {

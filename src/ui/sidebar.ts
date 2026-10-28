@@ -2,13 +2,14 @@ import { App, Debouncer, ItemView, MarkdownView, Notice, TFile, WorkspaceLeaf, d
 import { EditorView } from "@codemirror/view";
 import { Result } from "better-result";
 import { ParsedComment } from "../format/types";
-import { anchorRange, hasCommentCard, parseComments } from "../format/parse";
+import { anchorRange, hasCommentCard, parseComments, withoutReplacedDeletions } from "../format/parse";
 import { Card, CardCallbacks } from "./card";
 import { cardSignature } from "./card-format";
 import {
 	Change,
 	computeAppendReply,
 	computeDeleteComment,
+	computeResolveSuggestion,
 	computeDeleteEntry,
 	computeEditEntry,
 	computeSetColor,
@@ -87,6 +88,7 @@ export class CommentsSidebarView extends ItemView {
 			setColor: (id, colorId) => void this.edit((doc) => computeSetColor(doc, id, colorId)),
 			setStyle: (id, styleId) => void this.edit((doc) => computeSetStyle(doc, id, styleId)),
 			remove: (id) => void this.edit((doc) => computeDeleteComment(doc, id)),
+			resolveSuggestion: (id, accept) => void this.edit((doc) => computeResolveSuggestion(doc, id, accept)),
 			editEntry: (id, index, text) => void this.edit((doc) => computeEditEntry(doc, id, index, text)),
 			deleteEntry: (id, index) => void this.edit((doc) => computeDeleteEntry(doc, id, index)),
 			toggleReaction: (id, emoji) =>
@@ -247,7 +249,7 @@ export class CommentsSidebarView extends ItemView {
 			return;
 		}
 
-		const every = parseComments(data).filter(hasCommentCard);
+		const every = withoutReplacedDeletions(parseComments(data)).filter(hasCommentCard);
 		const byStatus = (list: ParsedComment[]) =>
 			this.filter === "open"
 				? list.filter((c) => c.status !== "resolved")

@@ -1,4 +1,5 @@
 import {
+	Annotation,
 	EditorSelection,
 	EditorState,
 	findClusterBreak,
@@ -9,9 +10,14 @@ import {
 } from "@codemirror/state";
 import { Decoration, DecorationSet, EditorView, ViewPlugin, WidgetType } from "@codemirror/view";
 import { ParsedComment } from "../format/types";
-import { anchorRange, parseComments } from "../format/parse";
+import { anchorRange, anchorStyle, parseComments, replacedBy } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { commentPreview } from "../format/preview";
+
+/** Marks a transaction the plugin itself built around the user's typing (the
+ *  Suggesting-mode wrap of composed text). It carries an input user event so
+ *  it joins the typing's undo step, but it may move markers. */
+export const pluginEdit = Annotation.define<boolean>();
 
 export type CommentFieldValue = {
 	comments: ParsedComment[];
@@ -246,6 +252,9 @@ const compute = (state: EditorState): CommentFieldValue => {
 		hideRanges.push(HIDE_BLOCK.range(from, atomicTo));
 	};
 
+	// A deletion inside a "Replace" pair points hovers and clicks at the card
+	// of the insertion replacing it (it has none of its own).
+	const cardOf = replacedBy(comments);
 	for (const c of comments) {
 		const code = isCodeComment(c);
 		if (c.open) {
@@ -275,8 +284,9 @@ const compute = (state: EditorState): CommentFieldValue => {
 			// the underlying text is hidden, so the highlight can't render there.
 			let cls = c.status === "resolved" ? "doc-comment-span is-resolved" : "doc-comment-span";
 			if (c.color) cls += ` dc-color-${c.color}`;
-			if (c.style) cls += ` dc-style-${c.style}`;
-			const attributes: Record<string, string> = { "data-cid": c.id };
+			const style = anchorStyle(c);
+			if (style) cls += ` dc-style-${style}`;
+			const attributes: Record<string, string> = { "data-cid": cardOf.get(c.id) ?? c.id };
 			const preview = commentPreview(c);
 			if (preview) attributes.title = preview;
 			decoRanges.push(Decoration.mark({ class: cls, attributes }).range(r.from, r.to));
@@ -353,6 +363,7 @@ const protectMarkersFromUserEdits = (
 	if (!tr.docChanged || (!tr.isUserEvent("input") && !tr.isUserEvent("delete") && !tr.isUserEvent("move"))) {
 		return true;
 	}
+	if (tr.annotation(pluginEdit)) return true;
 	const value = tr.startState.field(field, false);
 	if (!value) return true;
 	const protectedRanges: number[] = [];

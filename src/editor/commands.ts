@@ -1,7 +1,7 @@
 import type { App, TFile } from "obsidian";
 import { Result } from "better-result";
 import { EditorView } from "@codemirror/view";
-import { existingIds } from "../format/parse";
+import { existingIds, parseComments } from "../format/parse";
 import { generateId } from "../format/ids";
 import {
 	Change,
@@ -9,6 +9,8 @@ import {
 	computeAddComment,
 	computeAppendReply,
 	computeDeleteComment,
+	computeResolveAllSuggestions,
+	computeResolveSuggestion,
 	computeDeleteEntry,
 	computeEditEntry,
 	computeSetColor,
@@ -74,6 +76,22 @@ export const setStyle = (view: EditorView, id: string, style: string | undefined
 export const deleteComment = (view: EditorView, id: string): Result<void, string> => {
 	return computeDeleteComment(view.state.doc.toString(), id).map((changes) => {
 		view.dispatch({ changes });
+	});
+};
+
+export const resolveSuggestion = (view: EditorView, id: string, accept: boolean): Result<void, string> => {
+	return computeResolveSuggestion(view.state.doc.toString(), id, accept).map((changes) => {
+		view.dispatch({ changes });
+	});
+};
+
+/** Accept or reject every suggestion in the note. Ok carries how many there were. */
+export const resolveAllSuggestions = (view: EditorView, accept: boolean): Result<number, string> => {
+	const doc = view.state.doc.toString();
+	const count = parseComments(doc).filter((c) => c.suggest).length;
+	return computeResolveAllSuggestions(doc, accept).map((changes) => {
+		view.dispatch({ changes });
+		return count;
 	});
 };
 

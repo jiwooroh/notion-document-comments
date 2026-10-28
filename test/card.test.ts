@@ -79,6 +79,7 @@ const callbacks = (): CardCallbacks => ({
 	reply: vi.fn(() => Result.ok(undefined)),
 	setResolved: vi.fn(),
 	remove: vi.fn(),
+	resolveSuggestion: vi.fn(),
 	editEntry: vi.fn(),
 	deleteEntry: vi.fn(),
 	toggleReaction: vi.fn(),
@@ -192,5 +193,33 @@ describe("empty comment card", () => {
 		);
 		expect(cb.reply).toHaveBeenCalledWith("h1", "Keep this reply");
 		card.destroy();
+	});
+});
+
+describe("suggestion card", () => {
+	const suggestion = (): ParsedComment => ({
+		...emptyComment(),
+		suggest: "delete",
+		text: "on Friday",
+	});
+
+	test("shows what it deletes, with Accept and Reject", () => {
+		const cb = callbacks();
+		const card = new Card(suggestion(), cb, { sourcePath: () => "note.md" });
+		expect(card.el.querySelector(".dc-suggestion__verb")?.textContent).toBe("Delete");
+		expect(card.el.querySelector(".dc-suggestion__text--delete")?.textContent).toBe("on Friday");
+		expect(card.el.querySelector(".dc-entry__text--empty")).toBeNull();
+
+		card.el.querySelector<HTMLButtonElement>('[aria-label="Accept"]')?.click();
+		expect(cb.resolveSuggestion).toHaveBeenCalledWith(card.id, true);
+		card.el.querySelector<HTMLButtonElement>('[aria-label="Reject"]')?.click();
+		expect(cb.resolveSuggestion).toHaveBeenCalledWith(card.id, false);
+	});
+
+	test("clicking it opens a reply box instead of an empty-comment editor", () => {
+		const card = new Card(suggestion(), callbacks(), { sourcePath: () => "note.md" });
+		card.el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+		expect(card.el.querySelector(".dc-field--composer textarea")?.getAttribute("placeholder")).toBe("Reply…");
+		expect(card.el.querySelector(".dc-field--edit")).toBeNull();
 	});
 });

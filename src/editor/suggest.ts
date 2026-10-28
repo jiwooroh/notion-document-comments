@@ -1,0 +1,919 @@
+import {
+	ChangeSet,
+	EditorSelection,
+	EditorState,
+	Extension,
+	findClusterBreak,
+	StateEffect,
+	StateField,
+	Transaction,
+	TransactionSpec,
+} from "@codemirror/state";
+import { Decoration, DecorationSet, EditorView, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { ParsedComment, SuggestionKind, TextRange } from "../format/types";
+import { fencedRanges, parseComments } from "../format/parse";
+import { closeMarker, openMarker, serializeBody } from "../format/serialize";
+import { generateId } from "../format/ids";
+import { Change, applyChanges, blockEnd, computeDeleteComment, toData } from "./edits";
+import { commentConfig } from "./config";
+import { getComments, pluginEdit } from "./state";
+
+/*
+ * Suggesting mode (Notion / Google Docs "Suggest edits").
+ *
+ * While it's on, the user's typing never changes the note's text directly:
+ * - Typed text is wrapped as an insertion suggestion — an ordinary comment
+ *   anchor whose body carries `suggest:insert`.
+ * - Deleted text stays in the note, wrapped as a deletion suggestion
+ *   (`suggest:delete`), and is drawn struck through.
+ * - Editing your own pending insertion edits it in place, and a suggestion
+ *   typed right next to another of yours grows it instead of starting a new one.
+ *
+ * Accepting or rejecting a suggestion (editor/edits.ts) applies or drops it.
+ */
+
+export type EditInput = {
+	from: number;
+	to: number;
+	insert: string;
+	/** Where the edit put the caret inside `insert` (auto-paired brackets leave
+	 *  it between them). Defaults to the end. */
+	caret?: number;
+};
+export type Direction = "backward" | "forward" | "none";
+
+export type SuggestContext = {
+	author: string;
+	createdAt: string;
+};
+
+export type SuggestPlan = {
+	/** In the original document's coordinates, sorted and non-overlapping. */
+	changes: Change[];
+	/** Where each edit leaves the caret, in the document after `changes`. */
+	carets: number[];
+	/** In the document after `changes`: refreshed suggestion quotes, and
+	 *  insertions whose text is now empty removed. */
+	followUp: Change[];
+	/** Text the edit would have removed that isn't yours to remove, so it was
+	 *  kept and marked for deletion instead (original coordinates). */
+	deletedRanges: TextRange[];
+};
+
+/** Text an IME composition deleted (it replaced a selection), to be put back
+ *  as a deletion suggestion once the composition ends. `pos` is where it was. */
+export type PendingDeletion = { pos: number; text: string };
+
+type Piece = Change & { seq: number; caret?: number };
+
+const BODY_SEQ = 1_000_000;
+
+/**
+ * Turn a user edit into suggestions. `edits` are the user's changes in the
+ * original document (CodeMirror's iterChanges order); `pending` are ranges of
+ * text typed during an IME composition that will be wrapped once it ends
+ * (they count as your own insertion).
+ */
+export const planSuggestedEdits = (
+	doc: string,
+	edits: EditInput[],
+	ctx: SuggestContext,
+	direction: Direction,
+	pending: TextRange[] = [],
+	/** `doc` already parsed (the editor keeps it parsed), to save a re-parse. */
+	parsed?: ParsedComment[],
+): SuggestPlan => {
+	const comments = parsed ?? parseComments(doc);
+	const zones = classifyZones(doc, comments, ctx.author);
+	const ids = new Set(comments.map((c) => c.id));
+	const newId = () => {
+		const id = generateId(ids);
+		ids.add(id);
+		return id;
+	};
+
+	const pieces: Piece[] = [];
+	let seq = 0;
+	const push = (from: number, to: number, insert: string, caret?: number): Piece => {
+		const piece = { from, to, insert, seq: seq++, caret };
+		pieces.push(piece);
+		return piece;
+	};
+	const pushBody = (id: string, kind: SuggestionKind, at: number, quote: string, replaces?: string) => {
+		pieces.push({
+			from: at,
+			to: at,
+			insert: "\n" + suggestionBody(id, kind, quote, ctx, replaces),
+			seq: BODY_SEQ + seq++,
+		});
+	};
+	const touched = new Set<string>();
+	const carets: Array<{ piece: Piece } | { pos: number; assoc: -1 | 1 }> = [];
+
+	const inPending = (pos: number, inclusive: boolean) =>
+		pending.some((r) => pos >= r.from && (inclusive ? pos <= r.to : pos < r.to));
+
+	const classify = (pos: number): { kind: "protected" | "real" | "already" | "suggest"; owner?: string } => {
+		if (zones.protectedRanges.some((r) => pos >= r.from && pos < r.to)) return { kind: "protected" };
+		const own = zones.ownInserts.find((c) => pos >= c.open.to && pos < c.close.from);
+		if (own) return { kind: "real", owner: own.id };
+		if (inPending(pos, false)) return { kind: "real" };
+		if (zones.deletes.some((c) => pos >= c.open.to && pos < c.close.from)) return { kind: "already" };
+		return { kind: "suggest" };
+	};
+
+	const deletedRanges: TextRange[] = [];
+	/** Deletion made by this edit, by where it ends: text typed right there
+	 *  replaces it. */
+	const deletionEndingAt = new Map<number, string>();
+	/** The closing marker each deletion got, by where it ends: Delete leaves the
+	 *  caret right after it (a body inserted at the same offset comes later). */
+	const closeAt = new Map<number, Piece>();
+	const markDeleted = (from: number, to: number) => {
+		deletedRanges.push({ from, to });
+		const left = zones.ownDeletes.find((d) => d.close.to === from);
+		const right = zones.ownDeletes.find((d) => d.open.from === to);
+		if (left) {
+			push(left.close.from, left.close.to, "");
+			const close = closeMarker(left.id);
+			closeAt.set(to, push(to, to, close, close.length));
+			touched.add(left.id);
+			deletionEndingAt.set(to, left.id);
+		} else if (right) {
+			push(from, from, openMarker(right.id));
+			push(right.open.from, right.open.to, "");
+			touched.add(right.id);
+		} else {
+			const id = newId();
+			push(from, from, openMarker(id));
+			const close = closeMarker(id);
+			closeAt.set(to, push(to, to, close, close.length));
+			pushBody(id, "delete", blockEnd(doc, to), doc.slice(from, to));
+			deletionEndingAt.set(to, id);
+		}
+	};
+
+	for (const edit of mergeEdits(edits, zones.protectedRanges)) {
+		const untracked =
+			strictlyInside(zones.untrackable, edit.from) ||
+			strictlyInside(zones.untrackable, edit.to) ||
+			(edit.from === edit.to && strictlyInside(zones.untrackable, edit.from));
+		if (untracked) {
+			// Markers can't go here (code, front matter, a link target): let the
+			// edit through as a plain edit.
+			const piece = push(edit.from, edit.to, edit.insert, edit.insert ? caretIn(edit) : undefined);
+			carets.push(edit.insert ? { piece } : { pos: edit.from, assoc: -1 });
+			continue;
+		}
+
+		// The deleted part: text you typed as a suggestion really goes; anything
+		// else is kept and marked for deletion.
+		if (edit.to > edit.from) {
+			let group: [number, number] | null = null;
+			const groups: Array<[number, number]> = [];
+			for (const [a, b] of intervals(edit.from, edit.to, zones.breakpoints, pending)) {
+				const { kind, owner } = classify(a);
+				if (kind === "suggest") {
+					group = group ? [group[0], b] : [a, b];
+				} else if (kind === "real") {
+					if (group) groups.push(group);
+					group = null;
+					push(a, b, "");
+					if (owner) touched.add(owner);
+				}
+				// Markers and already-deleted text are left as they are; a deletion
+				// may span them.
+			}
+			if (group) groups.push(group);
+			for (const [a, b] of groups) markDeleted(a, b);
+		}
+
+		if (!edit.insert) {
+			const close = closeAt.get(edit.to);
+			if (direction !== "forward") carets.push({ pos: edit.from, assoc: -1 });
+			else carets.push(close ? { piece: close } : { pos: edit.to, assoc: 1 });
+			continue;
+		}
+
+		// The inserted part goes after whatever the edit marked for deletion.
+		const { at, own } = placeInsertion(zones, edit.to, ctx.author);
+		if (own || inPending(at, true)) {
+			// Typing inside your suggestion leaves its stored quote as it was:
+			// rewriting the body on every keystroke made typing slow, and the quote
+			// is only the fallback for a lost marker (the card reads the live text).
+			carets.push({ piece: push(at, at, edit.insert, caretIn(edit)) });
+		} else {
+			const id = newId();
+			const open = openMarker(id);
+			const piece = push(at, at, open + edit.insert + closeMarker(id), open.length + caretIn(edit));
+			const replaces = (at === edit.to ? deletionEndingAt.get(at) : undefined) ?? replaceableAt(zones, at);
+			pushBody(id, "insert", blockEnd(doc, at), edit.insert, replaces);
+			carets.push({ piece });
+		}
+	}
+
+	const { changes, offsets } = normalize(pieces);
+	const set = ChangeSet.of(changes, doc.length);
+	const caretPositions = carets.map((c) => {
+		if ("pos" in c) return set.mapPos(c.pos, c.assoc);
+		const offset = offsets.get(c.piece) ?? 0;
+		return set.mapPos(c.piece.from, -1) + offset + (c.piece.caret ?? 0);
+	});
+	const followUp = touched.size ? refreshSuggestions(applyChanges(doc, changes), touched) : [];
+	return { changes, carets: caretPositions, followUp, deletedRanges };
+};
+
+/**
+ * Wrap text typed during an IME composition (Korean, Japanese, Chinese…) as an
+ * insertion suggestion, once the composition has ended. Wrapping it while the
+ * IME is still composing would rewrite the text under the IME and break it.
+ */
+export const planWrapPending = (
+	doc: string,
+	ranges: TextRange[],
+	ctx: SuggestContext,
+	deletions: PendingDeletion[] = [],
+): Change[][] => {
+	const comments = parseComments(doc);
+	const zones = classifyZones(doc, comments, ctx.author);
+	const ids = new Set(comments.map((c) => c.id));
+	const pieces: Piece[] = [];
+	let seq = 0;
+	const push = (from: number, to: number, insert: string) => pieces.push({ from, to, insert, seq: seq++ });
+	const touched = new Set<string>();
+	const pushBody = (id: string, kind: SuggestionKind, at: number, quote: string, replaces?: string) => {
+		pieces.push({
+			from: at,
+			to: at,
+			insert: "\n" + suggestionBody(id, kind, quote, ctx, replaces),
+			seq: BODY_SEQ + seq++,
+		});
+	};
+
+	// Put back what the composition replaced, struck through, before the new text.
+	const restoredAt = new Map<number, string>();
+	for (const { pos, text } of deletions) {
+		if (!text || pos < 0 || pos > doc.length) continue;
+		const id = generateId(ids);
+		ids.add(id);
+		restoredAt.set(pos, id);
+		push(pos, pos, openMarker(id) + text + closeMarker(id));
+		pushBody(id, "delete", blockEnd(doc, pos), text);
+	}
+
+	for (const { from, to } of mergeRanges(ranges)) {
+		if (to <= from) continue;
+		if (strictlyInside(zones.untrackable, from) || strictlyInside(zones.untrackable, to)) continue;
+		const inside = zones.ownInserts.find((c) => from >= c.open.to && to <= c.close.from);
+		if (inside) continue;
+		const left = zones.ownInserts.find((c) => c.close.to === from);
+		const right = zones.ownInserts.find((c) => c.open.from === to);
+		if (left) {
+			push(left.close.from, left.close.to, "");
+			push(to, to, closeMarker(left.id));
+			touched.add(left.id);
+		} else if (right) {
+			push(from, from, openMarker(right.id));
+			push(right.open.from, right.open.to, "");
+			touched.add(right.id);
+		} else {
+			const id = generateId(ids);
+			ids.add(id);
+			push(from, from, openMarker(id));
+			push(to, to, closeMarker(id));
+			pushBody(
+				id,
+				"insert",
+				blockEnd(doc, to),
+				doc.slice(from, to),
+				restoredAt.get(from) ?? replaceableAt(zones, from),
+			);
+		}
+	}
+	const { changes } = normalize(pieces);
+	return [changes, touched.size ? refreshSuggestions(applyChanges(doc, changes), touched) : []];
+};
+
+/**
+ * Before an IME starts composing at `pos`, open an empty insertion there (or
+ * find yours to continue), so the composed text lands inside a suggestion
+ * from its first character and the card shows up right away. Null where
+ * text isn't tracked.
+ */
+export const planOpenInsertion = (
+	doc: string,
+	pos: number,
+	ctx: SuggestContext,
+	parsed?: ParsedComment[],
+): { changes: Change[]; caret: number } | null => {
+	const comments = parsed ?? parseComments(doc);
+	const zones = classifyZones(doc, comments, ctx.author);
+	if (strictlyInside(zones.untrackable, pos)) return null;
+	const { at, own } = placeInsertion(zones, pos, ctx.author);
+	if (own) return { changes: [], caret: at };
+	const id = generateId(new Set(comments.map((c) => c.id)));
+	const open = openMarker(id);
+	const body = "\n" + suggestionBody(id, "insert", "", ctx, replaceableAt(zones, at));
+	const end = blockEnd(doc, at);
+	const changes =
+		end === at
+			? [{ from: at, to: at, insert: open + closeMarker(id) + body }]
+			: [
+					{ from: at, to: at, insert: open + closeMarker(id) },
+					{ from: end, to: end, insert: body },
+				];
+	return { changes, caret: at + open.length };
+};
+
+const suggestionBody = (
+	id: string,
+	kind: SuggestionKind,
+	quote: string,
+	ctx: SuggestContext,
+	replaces?: string,
+): string => {
+	return serializeBody(id, {
+		author: ctx.author,
+		createdAt: ctx.createdAt,
+		status: "open",
+		suggest: kind,
+		replaces,
+		quote,
+		thread: [],
+		reactions: [],
+	});
+};
+
+/** Where text typed at `at` goes: never inside text proposed for deletion
+ *  (it continues after it), and into your own insertion when it's right there. */
+const placeInsertion = (zones: Zones, start: number, author: string): { at: number; own?: Anchored } => {
+	let at = start;
+	for (let guard = 0; guard < 8; guard++) {
+		const deletion = zones.deletes.find(
+			(d) => (at >= d.open.to && at <= d.close.from) || (at === d.open.from && d.author === author),
+		);
+		if (!deletion) break;
+		at = deletion.close.to;
+	}
+	let own = zones.ownInserts.find((c) => at >= c.open.to && at <= c.close.from);
+	if (!own) {
+		own = zones.ownInserts.find((c) => at === c.close.to);
+		if (own) at = own.close.from;
+	}
+	if (!own) {
+		own = zones.ownInserts.find((c) => at === c.open.from);
+		if (own) at = own.open.to;
+	}
+	return { at, own };
+};
+
+/** Your deletion ending right at `at` that nothing replaces yet: new text
+ *  typed there replaces it. */
+const replaceableAt = (zones: Zones, at: number): string | undefined => {
+	const taken = new Set(zones.ownInserts.map((c) => c.replaces).filter(Boolean));
+	return zones.ownDeletes.find((d) => d.close.to === at && !taken.has(d.id))?.id;
+};
+
+/** Keep each touched suggestion's stored quote equal to its text, and drop an
+ *  insertion whose text has all been deleted. */
+export const refreshSuggestions = (doc: string, ids: Set<string>): Change[] => {
+	if (ids.size === 0) return [];
+	const out: Change[] = [];
+	for (const c of parseComments(doc)) {
+		if (!ids.has(c.id) || !c.suggest || c.text === undefined) continue;
+		if (c.suggest === "insert" && c.text === "") {
+			const removed = computeDeleteComment(doc, c.id);
+			if (removed.isOk()) out.push(...removed.value);
+			continue;
+		}
+		if (!c.body) continue;
+		const body = serializeBody(c.id, { ...toData(c), quote: c.text });
+		if (body !== doc.slice(c.body.from, c.body.to)) out.push({ from: c.body.from, to: c.body.to, insert: body });
+	}
+	return out.sort((a, b) => a.from - b.from || a.to - b.to);
+};
+
+type Anchored = ParsedComment & { open: TextRange; close: TextRange };
+
+type Zones = {
+	/** Marker and body ranges — never edited by a suggestion. */
+	protectedRanges: TextRange[];
+	ownInserts: Anchored[];
+	ownDeletes: Anchored[];
+	deletes: Anchored[];
+	/** Where a marker would break the Markdown (code, front matter, links). */
+	untrackable: TextRange[];
+	/** Every offset where the classification of a character can change. */
+	breakpoints: number[];
+};
+
+const isAnchoredSuggestion = (c: ParsedComment): c is Anchored => {
+	return !!c.suggest && !!c.open && !!c.close && c.open.to <= c.close.from;
+};
+
+const classifyZones = (doc: string, comments: ParsedComment[], author: string): Zones => {
+	const protectedRanges = comments
+		.flatMap((c) => [c.open, c.close, c.body])
+		.filter((r): r is TextRange => r !== null);
+	const anchored = comments.filter(isAnchoredSuggestion);
+	const ownInserts = anchored.filter((c) => c.suggest === "insert" && c.author === author);
+	const deletes = anchored.filter((c) => c.suggest === "delete");
+	const ownDeletes = deletes.filter((c) => c.author === author);
+	const breakpoints = [
+		...protectedRanges.flatMap((r) => [r.from, r.to]),
+		...anchored.flatMap((c) => [c.open.to, c.close.from]),
+	];
+	return {
+		protectedRanges,
+		ownInserts,
+		ownDeletes,
+		deletes,
+		untrackable: untrackableRanges(doc),
+		breakpoints,
+	};
+};
+
+/** Ranges where an HTML-comment marker would show literally or break syntax. */
+export const untrackableRanges = (doc: string): TextRange[] => {
+	const ranges: TextRange[] = fencedRanges(doc).map(([from, to]) => ({ from, to }));
+	const frontmatter = /^---\r?\n[\s\S]*?\n(?:---|\.\.\.)[ \t]*(?:\r?\n|$)/.exec(doc);
+	if (frontmatter) ranges.push({ from: 0, to: frontmatter[0].length });
+	for (const re of [/`+[^`\n]*`+/g, /!?\[\[[^\]\n]*\]\]/g, /\]\([^)\n]*\)/g, /\$\$[\s\S]*?\$\$/g]) {
+		let m: RegExpExecArray | null;
+		while ((m = re.exec(doc))) ranges.push({ from: m.index, to: m.index + m[0].length });
+	}
+	return ranges;
+};
+
+const caretIn = (edit: EditInput): number => {
+	return Math.max(0, Math.min(edit.caret ?? edit.insert.length, edit.insert.length));
+};
+
+const strictlyInside = (ranges: TextRange[], pos: number): boolean => {
+	return ranges.some((r) => pos > r.from && pos < r.to);
+};
+
+/** Sub-intervals of [from, to) split at every breakpoint inside it. */
+const intervals = (from: number, to: number, breakpoints: number[], pending: TextRange[]): Array<[number, number]> => {
+	const cuts = new Set([from, to]);
+	for (const p of [...breakpoints, ...pending.flatMap((r) => [r.from, r.to])]) {
+		if (p > from && p < to) cuts.add(p);
+	}
+	const sorted = Array.from(cuts).sort((a, b) => a - b);
+	return sorted.slice(0, -1).map((a, i) => [a, sorted[i + 1] ?? a]);
+};
+
+/** CodeMirror splits a deletion around the markers it isn't allowed to remove;
+ *  join those pieces back so one selection makes one deletion suggestion. */
+const mergeEdits = (edits: EditInput[], protectedRanges: TextRange[]): EditInput[] => {
+	const onlyProtected = (from: number, to: number): boolean => {
+		let pos = from;
+		while (pos < to) {
+			const r = protectedRanges.find((p) => p.from <= pos && p.to > pos);
+			if (!r) return false;
+			pos = r.to;
+		}
+		return true;
+	};
+	const out: EditInput[] = [];
+	for (const edit of [...edits].sort((a, b) => a.from - b.from)) {
+		const last = out[out.length - 1];
+		if (last && !last.insert && last.to < edit.to && onlyProtected(last.to, edit.from)) {
+			last.to = edit.to;
+			last.insert = edit.insert;
+		} else {
+			out.push({ ...edit });
+		}
+	}
+	return out;
+};
+
+const mergeRanges = (ranges: TextRange[]): TextRange[] => {
+	const out: TextRange[] = [];
+	for (const r of [...ranges].sort((a, b) => a.from - b.from)) {
+		const last = out[out.length - 1];
+		if (last && r.from <= last.to) last.to = Math.max(last.to, r.to);
+		else out.push({ ...r });
+	}
+	return out;
+};
+
+/** Sort pieces into a valid CodeMirror change list: by position, insertions
+ *  before a deletion starting at the same offset, and insertions at the same
+ *  offset joined in the order they were made (bodies last). `offsets` gives
+ *  where each original insertion piece starts inside its joined change. */
+const normalize = (pieces: Piece[]): { changes: Change[]; offsets: Map<Piece, number> } => {
+	const sorted = [...pieces].sort(
+		(a, b) => a.from - b.from || Number(a.to > a.from) - Number(b.to > b.from) || a.seq - b.seq,
+	);
+	const changes: Change[] = [];
+	const offsets = new Map<Piece, number>();
+	for (const p of sorted) {
+		const last = changes[changes.length - 1];
+		if (last && p.to === p.from && last.to === last.from && last.from === p.from) {
+			offsets.set(p, last.insert.length);
+			last.insert += p.insert;
+		} else {
+			offsets.set(p, 0);
+			changes.push({ from: p.from, to: p.to, insert: p.insert });
+		}
+	}
+	return { changes, offsets };
+};
+
+// ---------------------------------------------------------------------------
+// CodeMirror wiring
+// ---------------------------------------------------------------------------
+
+const clearPending = StateEffect.define<null>();
+
+const PENDING = Decoration.mark({
+	class: "doc-comment-span dc-style-suggest-insert dc-suggest-pending",
+	inclusive: true,
+});
+
+const isSuggesting = (state: EditorState): boolean => {
+	return state.facet(commentConfig).suggesting?.() ?? false;
+};
+
+/** Your own insertion suggestions, as the editor already parsed them. */
+const ownInsertions = (state: EditorState): Anchored[] => {
+	const author = state.facet(commentConfig).author();
+	return getComments(state).filter(
+		(c): c is Anchored => isAnchoredSuggestion(c) && c.suggest === "insert" && c.author === author,
+	);
+};
+
+/** Whether [from, to] lies inside one of the ranges' text (edges included). */
+const within = (ranges: TextRange[], from: number, to: number): boolean => {
+	return ranges.some((r) => from >= r.from && to <= r.to);
+};
+
+/** Text typed during an IME composition while suggesting, not yet wrapped.
+ *  Drawn like an insertion so it doesn't flash as plain text. */
+const pendingField = StateField.define<DecorationSet>({
+	create: () => Decoration.none,
+	update(value, tr) {
+		let next = value.map(tr.changes);
+		if (tr.effects.some((e) => e.is(clearPending))) next = Decoration.none;
+		const composed = tr.docChanged && tr.isUserEvent("input.type.compose") && !tr.annotation(pluginEdit);
+		if (composed && isSuggesting(tr.startState)) {
+			// Text composed inside your own suggestion is already tracked; only
+			// text composed elsewhere needs wrapping once the composition ends.
+			const own = ownInsertions(tr.startState).map((c) => ({ from: c.open.to, to: c.close.from }));
+			const added: Array<ReturnType<typeof PENDING.range>> = [];
+			tr.changes.iterChanges((fromA, toA, fromB, toB) => {
+				if (toB > fromB && !within(own, fromA, toA)) added.push(PENDING.range(fromB, toB));
+			});
+			if (added.length) next = next.update({ add: added, sort: true });
+		}
+		return next;
+	},
+	provide: (f) => EditorView.decorations.from(f),
+});
+
+const addPendingDeletions = StateEffect.define<PendingDeletion[]>();
+
+const pendingDeletionsField = StateField.define<PendingDeletion[]>({
+	create: () => [],
+	update(value, tr) {
+		let next = tr.docChanged ? value.map((d) => ({ ...d, pos: tr.changes.mapPos(d.pos, -1) })) : value;
+		for (const e of tr.effects) {
+			if (e.is(clearPending)) next = [];
+			if (e.is(addPendingDeletions)) next = [...next, ...e.value];
+		}
+		return next;
+	},
+});
+
+const pendingRanges = (state: EditorState): TextRange[] => {
+	const out: TextRange[] = [];
+	const iter = state.field(pendingField, false)?.iter();
+	while (iter?.value) {
+		out.push({ from: iter.from, to: iter.to });
+		iter.next();
+	}
+	return out;
+};
+
+const context = (state: EditorState): SuggestContext => ({
+	author: state.facet(commentConfig).author(),
+	createdAt: new Date().toISOString(),
+});
+
+/** The text a Backspace / Delete at each caret targets, skipping hidden
+ *  markers. CodeMirror's own target would be the marker itself (it's atomic),
+ *  which the marker protection then drops, so the key would do nothing. */
+const keyDeletionEdits = (state: EditorState, forward: boolean): EditInput[] | null => {
+	if (state.selection.ranges.some((r) => !r.empty)) return null;
+	const doc = state.doc.toString();
+	const hidden = parseComments(doc)
+		.flatMap((c) => [c.open, c.close, c.body])
+		.filter((r): r is TextRange => r !== null);
+	return state.selection.ranges.flatMap((range) => {
+		let pos = range.head;
+		for (let moved = true; moved;) {
+			moved = false;
+			const marker = hidden.find((r) => (forward ? r.from === pos : r.to === pos));
+			if (marker) {
+				pos = forward ? marker.to : marker.from;
+				moved = true;
+			}
+		}
+		const target = findClusterBreak(doc, pos, forward);
+		if (target === pos) return [];
+		return [forward ? { from: pos, to: target, insert: "" } : { from: target, to: pos, insert: "" }];
+	});
+};
+
+const suggestFilter = EditorState.transactionFilter.of((tr) => {
+	if (!isSuggesting(tr.startState) || tr.annotation(pluginEdit)) return tr;
+	if (!tr.isUserEvent("input") && !tr.isUserEvent("delete") && !tr.isUserEvent("move")) return tr;
+	const composing = tr.isUserEvent("input.type.compose");
+	// The common composition step — replacing the character being composed, in
+	// text that's yours or pending — needs no planning at all.
+	if (composing && !removesOthersText(tr)) return tr;
+	const userEvent = tr.annotation(Transaction.userEvent) ?? "";
+	const direction: Direction = /backward/.test(userEvent)
+		? "backward"
+		: /forward/.test(userEvent)
+			? "forward"
+			: "none";
+	let edits: EditInput[] | null = null;
+	if (userEvent === "delete.backward" || userEvent === "delete.forward") {
+		edits = keyDeletionEdits(tr.startState, userEvent === "delete.forward");
+	}
+	if (!edits) {
+		if (!tr.docChanged) return tr;
+		const collected: EditInput[] = [];
+		const head = tr.newSelection.main.head;
+		tr.changes.iterChanges((fromA, toA, fromB, toB, inserted) =>
+			collected.push({
+				from: fromA,
+				to: toA,
+				insert: inserted.toString(),
+				caret: head >= fromB && head <= toB ? head - fromB : undefined,
+			}),
+		);
+		edits = collected;
+	}
+	if (edits.length === 0) return tr.docChanged ? {} : tr;
+
+	const plan = planSuggestedEdits(
+		tr.startState.doc.toString(),
+		edits,
+		context(tr.startState),
+		direction,
+		pendingRanges(tr.startState),
+		getComments(tr.startState),
+	);
+	// Composition input is left alone (rewriting it under the IME breaks it):
+	// pendingField tracks it and it's wrapped once the composition ends. The
+	// exception is a composition that replaces a selection, which deletes the
+	// selected text: the keydown handler in typingGuard usually turns the
+	// selection into a deletion first, and when it couldn't (no key event), the
+	// deleted text is remembered and put back struck through once composing ends.
+	if (composing) {
+		if (plan.deletedRanges.length === 0) return tr;
+		const doc = tr.startState.doc.toString();
+		const deletions = plan.deletedRanges.map((r) => ({
+			pos: tr.changes.mapPos(r.from, -1),
+			text: doc.slice(r.from, r.to),
+		}));
+		return [tr, { effects: addPendingDeletions.of(deletions), sequential: true }];
+	}
+	const mainIndex = Math.min(tr.startState.selection.mainIndex, plan.carets.length - 1);
+	const specs: TransactionSpec[] = [
+		{
+			changes: plan.changes,
+			selection: plan.carets.length
+				? EditorSelection.create(
+						plan.carets.map((pos) => EditorSelection.cursor(pos)),
+						Math.max(0, mainIndex),
+					)
+				: undefined,
+			effects: tr.effects,
+			userEvent,
+			scrollIntoView: true,
+		},
+	];
+	if (plan.followUp.length) specs.push({ changes: plan.followUp, sequential: true });
+	return specs;
+});
+
+/** Whether a transaction deletes text outside your own suggestions and the
+ *  pending composed text — text that must be kept as a suggested deletion. */
+const removesOthersText = (tr: Transaction): boolean => {
+	const ownText = [
+		...ownInsertions(tr.startState).map((c) => ({ from: c.open.to, to: c.close.from })),
+		...pendingRanges(tr.startState),
+	];
+	let removes = false;
+	tr.changes.iterChanges((fromA, toA) => {
+		if (toA > fromA && !within(ownText, fromA, toA)) removes = true;
+	});
+	return removes;
+};
+
+/** Wraps composed text once the IME is done with it. */
+const pendingFlush = ViewPlugin.fromClass(
+	class {
+		private timer = 0;
+
+		constructor(private view: EditorView) {
+			view.contentDOM.addEventListener("compositionend", this.schedule);
+		}
+
+		update(update: ViewUpdate): void {
+			const waiting =
+				update.state.field(pendingField).size > 0 || update.state.field(pendingDeletionsField).length > 0;
+			if (waiting && !update.view.composing) this.schedule();
+		}
+
+		private schedule = (): void => {
+			window.clearTimeout(this.timer);
+			this.timer = window.setTimeout(() => this.flush(), 30);
+		};
+
+		private flush(): void {
+			const { view } = this;
+			if (view.composing) return;
+			const ranges = pendingRanges(view.state);
+			const deletions = view.state.field(pendingDeletionsField);
+			if (ranges.length === 0 && deletions.length === 0) return;
+			const [changes = [], followUp = []] = planWrapPending(
+				view.state.doc.toString(),
+				ranges,
+				context(view.state),
+				deletions,
+			);
+			// The wrap stays out of the undo history: undoing the typing then
+			// removes the text from between the markers, and cleanEmptyInsertions
+			// drops the emptied suggestion. Recording it as its own step instead
+			// made one Cmd+Z remove only the markers (the card), leaving the text.
+			// Restored deleted text is the exception: undoing the typing brings
+			// that text back itself, so its wrap must be undone with it.
+			const annotations = deletions.length
+				? [pluginEdit.of(true)]
+				: [pluginEdit.of(true), Transaction.addToHistory.of(false)];
+			const specs: TransactionSpec[] = [
+				{
+					changes,
+					effects: clearPending.of(null),
+					annotations,
+					userEvent: "input.type.compose",
+				},
+			];
+			if (followUp.length) {
+				specs.push({ changes: followUp, sequential: true, annotations, userEvent: "input.type.compose" });
+			}
+			view.dispatch(...specs);
+		}
+
+		destroy(): void {
+			window.clearTimeout(this.timer);
+			this.view.contentDOM.removeEventListener("compositionend", this.schedule);
+		}
+	},
+);
+
+/** Remove insertion suggestions left with no text: one opened for an IME that
+ *  then typed nothing (once the caret leaves it), and one whose text was undone
+ *  (its markers weren't part of that undo step). */
+const cleanEmptyInsertions = ViewPlugin.fromClass(
+	class {
+		constructor(private view: EditorView) {}
+
+		update(update: ViewUpdate): void {
+			const undone = update.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"));
+			if (!undone && !update.selectionSet) return;
+			if (this.stale(update.state, undone).length === 0) return;
+			queueMicrotask(() => {
+				if (this.view.composing) return;
+				const doc = this.view.state.doc.toString();
+				const changes = this.stale(this.view.state, undone).flatMap((c) =>
+					computeDeleteComment(doc, c.id).unwrapOr([]),
+				);
+				if (changes.length === 0) return;
+				this.view.dispatch({
+					changes: changes.sort((a, b) => a.from - b.from),
+					annotations: [pluginEdit.of(true), Transaction.addToHistory.of(false)],
+				});
+			});
+		}
+
+		private stale(state: EditorState, undone: boolean): ParsedComment[] {
+			const heads = state.selection.ranges.map((r) => r.head);
+			return getComments(state).filter(
+				(c) =>
+					c.suggest === "insert" &&
+					c.text === "" &&
+					(undone || !heads.some((h) => c.open !== null && h === c.open.to)),
+			);
+		}
+	},
+);
+
+/** Keys that type text (a character, or an IME's "Process" key). Enter,
+ *  arrows, etc. are left to the transaction filter. */
+const typesText = (event: KeyboardEvent): boolean => {
+	return event.key.length === 1 || event.key === "Process" || event.isComposing;
+};
+
+/** Keys that start or continue an IME composition. Some IMEs report the
+ *  character itself (Korean jamo), others "Process". */
+const composes = (event: KeyboardEvent): boolean => {
+	return event.key === "Process" || event.isComposing || (event.key.length === 1 && event.key.charCodeAt(0) > 0x7f);
+};
+
+/**
+ * Before a typing key is handled:
+ * - Typing over a selection: mark the selected text for deletion and put the
+ *   caret after it, so the new text (composed or not) starts there. An IME
+ *   would otherwise replace the selection in the page itself, out of the
+ *   filter's reach.
+ * - An IME key: open the insertion the composed text will go in, so its card
+ *   appears with the first character instead of when the word is finished.
+ */
+const typingGuard = ViewPlugin.fromClass(
+	class {
+		constructor(private view: EditorView) {
+			view.contentDOM.addEventListener("keydown", this.onKeyDown, true);
+		}
+
+		private onKeyDown = (event: KeyboardEvent): void => {
+			const { view } = this;
+			if (!isSuggesting(view.state) || event.metaKey || event.ctrlKey || event.altKey) return;
+			if (!typesText(event)) return;
+			const ime = composes(event) && !view.composing && view.state.selection.ranges.length === 1;
+			const selected = view.state.selection.ranges.some((r) => !r.empty);
+			if (!ime) {
+				// A plain key over a selection: strike the selection now; the key's
+				// text then goes through the filter, right after it.
+				if (selected) {
+					view.dispatch({
+						changes: view.state.selection.ranges.map((r) => ({ from: r.from, to: r.to })),
+						userEvent: "delete.selection.forward",
+					});
+				}
+				return;
+			}
+			// The common case, mid-word: already inside your insertion.
+			const head0 = view.state.selection.main.head;
+			if (!selected && ownInsertions(view.state).some((c) => head0 >= c.open.to && head0 <= c.close.from)) return;
+			// An IME key: strike any selection and open the insertion in one undo
+			// step, which the composed typing then joins.
+			const ctx = context(view.state);
+			let doc = view.state.doc.toString();
+			let head = view.state.selection.main.head;
+			let parsed: ParsedComment[] | undefined = getComments(view.state);
+			const specs: TransactionSpec[] = [];
+			if (selected) {
+				const { from, to } = view.state.selection.main;
+				const struck = planSuggestedEdits(doc, [{ from, to, insert: "" }], ctx, "forward", [], parsed);
+				const afterStrike = applyChanges(doc, struck.changes);
+				specs.push({ changes: struck.changes });
+				head = struck.carets[0] ?? from;
+				doc = afterStrike;
+				if (struck.followUp.length) {
+					specs.push({ changes: struck.followUp, sequential: true });
+					head = ChangeSet.of(struck.followUp, afterStrike.length).mapPos(head, -1);
+					doc = applyChanges(afterStrike, struck.followUp);
+				}
+				parsed = undefined;
+			}
+			const open = planOpenInsertion(doc, head, ctx, parsed);
+			// Already inside your insertion: nothing to do (an empty transaction
+			// here would split the typing's undo step).
+			if (!selected && (!open || (open.changes.length === 0 && open.caret === head))) return;
+			if (open) specs.push({ changes: open.changes, sequential: specs.length > 0 });
+			const last = specs.length - 1;
+			view.dispatch(
+				...specs.map((spec, i) =>
+					i === last
+						? {
+								...spec,
+								selection: { anchor: open ? open.caret : head },
+								annotations: pluginEdit.of(true),
+								userEvent: "input.type",
+							}
+						: spec,
+				),
+			);
+		};
+
+		destroy(): void {
+			this.view.contentDOM.removeEventListener("keydown", this.onKeyDown, true);
+		}
+	},
+);
+
+/** Everything Suggesting mode needs in the editor. Inert while editing. */
+export const suggestExtension: Extension = [
+	pendingField,
+	pendingDeletionsField,
+	suggestFilter,
+	pendingFlush,
+	typingGuard,
+	cleanEmptyInsertions,
+];

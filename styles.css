@@ -1966,6 +1966,124 @@ body.dc-pdf-cards .dc-narrow .doc-comment-margin .doc-comment-card.dc-pdf-open::
 	right: calc(-1 * var(--dc-pin-width) - 6px);
 }
 
+/* ---------- Suggesting mode ----------
+   A suggestion is a comment anchor drawn as an edit: suggested additions in
+   teal with an underline, suggested deletions struck through in gray (see
+   editor/suggest.ts). The :is() bumps specificity past the "comments hidden"
+   rule above — a suggestion is a change to the text, so it stays visible. */
+/* Teal is in neither highlight palette (Notion or Apple), and additions get
+   no fill, so a suggestion never reads as a comment highlight. */
+body {
+	--dc-suggest-insert: #0E8C83;
+	--dc-suggest-delete: var(--text-faint);
+	/* The Reject button stays red: it's an action, not the deleted text. */
+	--dc-suggest-reject: var(--color-red);
+}
+body.theme-dark {
+	--dc-suggest-insert: #3CC4B6;
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert {
+	background-color: transparent;
+	border-bottom: 2px solid color-mix(in srgb, var(--dc-suggest-insert) 55%, transparent);
+	color: var(--dc-suggest-insert);
+	pointer-events: auto;
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-delete {
+	background-color: transparent;
+	border-bottom-color: transparent;
+	color: var(--dc-suggest-delete);
+	text-decoration: line-through;
+	text-decoration-color: var(--dc-suggest-delete);
+	text-decoration-thickness: 1.5px;
+	pointer-events: auto;
+}
+/* Never a fill — that's what comment highlights look like. Hover / active
+   (and the flash when its card is clicked) darken the line instead. */
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span:is(.dc-style-suggest-insert, .dc-style-suggest-delete),
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span:is(.dc-style-suggest-insert, .dc-style-suggest-delete) .dc-active-anchor {
+	background-color: transparent;
+	animation: none;
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert:is(.is-active, .dc-flash),
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anchor .doc-comment-span.dc-style-suggest-insert {
+	border-bottom-color: var(--dc-suggest-insert);
+}
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-delete:is(.is-active, .dc-flash),
+body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .dc-active-anchor .doc-comment-span.dc-style-suggest-delete {
+	text-decoration-thickness: 2.5px;
+}
+
+/* The same inside Live Preview tables and inline HTML, which are painted with
+   CSS Custom Highlights (editor/table-highlights.ts, html-highlights.ts). */
+::highlight(notion-style-comments-table-suggest-insert),
+::highlight(nsc-html-default-suggest-insert) {
+	background-color: transparent;
+	color: var(--dc-suggest-insert);
+	text-decoration: underline 2px color-mix(in srgb, var(--dc-suggest-insert) 55%, transparent);
+}
+::highlight(notion-style-comments-table-suggest-delete),
+::highlight(nsc-html-default-suggest-delete) {
+	background-color: transparent;
+	color: var(--dc-suggest-delete);
+	text-decoration: line-through 1.5px var(--dc-suggest-delete);
+}
+
+/* The card's color indicator follows the kind of edit. */
+.doc-comment-card.dc-card--suggest-insert {
+	--dc-highlight-border: var(--dc-suggest-insert);
+}
+.doc-comment-card.dc-card--suggest-delete {
+	--dc-highlight-border: var(--dc-suggest-delete);
+}
+.dc-suggestion__body {
+	margin-top: 2px;
+	font-size: var(--font-ui-small);
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+.dc-suggestion__verb {
+	margin-right: 6px;
+	font-weight: var(--font-semibold);
+	color: var(--text-muted);
+}
+.dc-suggestion__text--insert {
+	color: var(--dc-suggest-insert);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--dc-suggest-insert) 60%, transparent);
+	text-underline-offset: 2px;
+}
+.dc-suggestion__text--delete {
+	color: var(--dc-suggest-delete);
+	text-decoration: line-through;
+	text-decoration-color: var(--dc-suggest-delete);
+}
+.dc-suggestion__text.is-empty {
+	font-style: italic;
+	text-decoration: none;
+}
+/* Accept / Reject are tinted like the edit they apply. */
+.dc-entry__bar .dc-act.dc-act--accept {
+	color: var(--dc-suggest-insert);
+}
+.dc-entry__bar .dc-act.dc-act--reject {
+	color: var(--dc-suggest-reject);
+}
+
+/* Status bar: the current mode, highlighted while suggesting. */
+.dc-edit-mode-status.is-suggesting {
+	color: var(--dc-suggest-insert);
+	font-weight: var(--font-semibold);
+}
+
+/* Ribbon / note-header mode button: tinted while suggesting. */
+.dc-edit-mode-button.is-active {
+	color: var(--dc-suggest-insert);
+}
+.dc-suggestion__arrow {
+	margin: 0 5px;
+	color: var(--text-faint);
+}
+
 /* "Find what makes the note wider than the screen" command: temporary outline. */
 .dc-too-wide {
 	outline: 2px solid var(--color-red, red);

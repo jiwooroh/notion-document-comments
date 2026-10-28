@@ -28,7 +28,19 @@ export const cardEntries = (comment: ParsedComment): CardEntry[] => {
  */
 export const cardSignature = (c: ParsedComment): string => {
 	// Color and style too: the card's color indicator follows the comment's color.
-	return JSON.stringify([c.status, c.author, c.createdAt, c.thread, c.reactions, isAnchored(c), c.color, c.style]);
+	return JSON.stringify([
+		c.status,
+		c.author,
+		c.createdAt,
+		c.thread,
+		c.reactions,
+		isAnchored(c),
+		c.color,
+		c.style,
+		c.suggest,
+		c.text,
+		c.replacedText,
+	]);
 };
 
 /** A short relative time ("just now", "5m", "3h", "2d") that falls back to an
