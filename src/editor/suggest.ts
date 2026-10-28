@@ -459,6 +459,19 @@ const isSuggesting = (state: EditorState): boolean => {
 	return state.facet(commentConfig).suggesting?.() ?? false;
 };
 
+/** Your own insertion suggestions, as the editor already parsed them. */
+const ownInsertions = (state: EditorState): Anchored[] => {
+	const author = state.facet(commentConfig).author();
+	return getComments(state).filter(
+		(c): c is Anchored => isAnchoredSuggestion(c) && c.suggest === "insert" && c.author === author,
+	);
+};
+
+/** Whether [from, to] lies inside one of the ranges' text (edges included). */
+const within = (ranges: TextRange[], from: number, to: number): boolean => {
+	return ranges.some((r) => from >= r.from && to <= r.to);
+};
+
 /** Text typed during an IME composition while suggesting, not yet wrapped.
  *  Drawn like an insertion so it doesn't flash as plain text. */
 const pendingField = StateField.define<DecorationSet>({
@@ -468,9 +481,12 @@ const pendingField = StateField.define<DecorationSet>({
 		if (tr.effects.some((e) => e.is(clearPending))) next = Decoration.none;
 		const composed = tr.docChanged && tr.isUserEvent("input.type.compose") && !tr.annotation(pluginEdit);
 		if (composed && isSuggesting(tr.startState)) {
+			// Text composed inside your own suggestion is already tracked; only
+			// text composed elsewhere needs wrapping once the composition ends.
+			const own = ownInsertions(tr.startState).map((c) => ({ from: c.open.to, to: c.close.from }));
 			const added: Array<ReturnType<typeof PENDING.range>> = [];
-			tr.changes.iterChanges((_fromA, _toA, fromB, toB) => {
-				if (toB > fromB) added.push(PENDING.range(fromB, toB));
+			tr.changes.iterChanges((fromA, toA, fromB, toB) => {
+				if (toB > fromB && !within(own, fromA, toA)) added.push(PENDING.range(fromB, toB));
 			});
 			if (added.length) next = next.update({ add: added, sort: true });
 		}
@@ -537,6 +553,9 @@ const suggestFilter = EditorState.transactionFilter.of((tr) => {
 	if (!isSuggesting(tr.startState) || tr.annotation(pluginEdit)) return tr;
 	if (!tr.isUserEvent("input") && !tr.isUserEvent("delete") && !tr.isUserEvent("move")) return tr;
 	const composing = tr.isUserEvent("input.type.compose");
+	// The common composition step — replacing the character being composed, in
+	// text that's yours or pending — needs no planning at all.
+	if (composing && !removesOthersText(tr)) return tr;
 	const userEvent = tr.annotation(Transaction.userEvent) ?? "";
 	const direction: Direction = /backward/.test(userEvent)
 		? "backward"
@@ -604,6 +623,20 @@ const suggestFilter = EditorState.transactionFilter.of((tr) => {
 	if (plan.followUp.length) specs.push({ changes: plan.followUp, sequential: true });
 	return specs;
 });
+
+/** Whether a transaction deletes text outside your own suggestions and the
+ *  pending composed text — text that must be kept as a suggested deletion. */
+const removesOthersText = (tr: Transaction): boolean => {
+	const ownText = [
+		...ownInsertions(tr.startState).map((c) => ({ from: c.open.to, to: c.close.from })),
+		...pendingRanges(tr.startState),
+	];
+	let removes = false;
+	tr.changes.iterChanges((fromA, toA) => {
+		if (toA > fromA && !within(ownText, fromA, toA)) removes = true;
+	});
+	return removes;
+};
 
 /** Wraps composed text once the IME is done with it. */
 const pendingFlush = ViewPlugin.fromClass(
