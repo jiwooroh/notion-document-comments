@@ -19,9 +19,14 @@ export const commentPreview = (comment: ParsedComment): string | null => {
 
 /** "Add “…”" / "Delete “…”" for a suggestion with no replies yet. */
 const suggestionPreview = (comment: ParsedComment): string => {
-	const verb = comment.suggest === "insert" ? "Add" : "Delete";
-	const raw = (comment.text ?? comment.quote ?? "").trim().replace(/\s+/g, " ");
-	const text = raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
-	const line = text ? `${verb} “${text}”` : `${verb} line break`;
+	const short = (s: string) => {
+		const raw = s.trim().replace(/\s+/g, " ");
+		return raw.length > 80 ? `${raw.slice(0, 80)}…` : raw;
+	};
+	const text = short(comment.text ?? comment.quote ?? "");
+	const line =
+		comment.replacedText !== undefined
+			? `Replace “${short(comment.replacedText)}” with “${text}”`
+			: `${comment.suggest === "insert" ? "Add" : "Delete"} ${text ? `“${text}”` : "line break"}`;
 	return showAuthor && comment.author ? `${comment.author}: ${line}` : line;
 };

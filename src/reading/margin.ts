@@ -1,7 +1,7 @@
 import { App, MarkdownView, Notice } from "obsidian";
 import { Result } from "better-result";
 import { ParsedComment, TextRange } from "../format/types";
-import { hasCommentCard, hasMarginAnchor, parseComments } from "../format/parse";
+import { hasCommentCard, hasMarginAnchor, parseComments, withoutReplacedDeletions } from "../format/parse";
 import { Card, CardCallbacks } from "../ui/card";
 import { cardSignature } from "../ui/card-format";
 import {
@@ -129,7 +129,7 @@ class ReadingMargin {
 		// A comment that lost one of its markers still gets a card when Reading
 		// view found its saved quote (see highlightPostProcessor); position() only
 		// shows cards whose highlight is on the page.
-		const all = parseComments(data).filter(
+		const all = withoutReplacedDeletions(parseComments(data)).filter(
 			(c) => hasMarginAnchor(c) || (hasCommentCard(c) && !!c.quote && !!(c.open || c.close)),
 		);
 		// Sidebar open → inline cards step aside (the panel lists them instead).

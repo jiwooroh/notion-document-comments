@@ -39,6 +39,7 @@ export const cardSignature = (c: ParsedComment): string => {
 		c.style,
 		c.suggest,
 		c.text,
+		c.replacedText,
 	]);
 };
 

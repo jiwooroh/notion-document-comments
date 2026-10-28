@@ -38,6 +38,10 @@ export type CommentData = {
 	style?: string;
 	/** Present when this "comment" is a suggested edit rather than a remark. */
 	suggest?: SuggestionKind;
+	/** On an insertion: the id of the deletion it replaces (typed over a
+	 *  selection, or right after deleting). The pair shows as one "Replace"
+	 *  card and is accepted or rejected together. */
+	replaces?: string;
 	thread: ThreadEntry[];
 	reactions: Reaction[];
 };
@@ -59,4 +63,6 @@ export type ParsedComment = {
 	/** A suggestion's current anchored text (between its markers), read live
 	 *  from the document — `quote` is only the re-anchor fallback. */
 	text?: string;
+	/** On an insertion that replaces a deletion: that deletion's live text. */
+	replacedText?: string;
 } & CommentData;

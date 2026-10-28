@@ -5,7 +5,7 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
-- **Suggesting mode** (like Notion's "Suggest edits"): switch between Editing and Suggesting from the status bar, a command, or settings. While suggesting, typed text becomes a suggested addition and deleted text stays, struck through, as a suggested deletion. Each suggestion has a card with Accept / Reject and replies, and new commands accept or reject every suggestion in a note. Works with Korean, Japanese, and Chinese input. Suggestions are stored as comments with a `suggest:insert` / `suggest:delete` header key.
+- **Suggesting mode** (like Notion's "Suggest edits"): switch between Editing and Suggesting from the status bar, a command, or settings. While suggesting, typed text becomes a suggested addition and deleted text stays, struck through, as a suggested deletion. Each suggestion has a card with Accept / Reject and replies, and new commands accept or reject every suggestion in a note. Works with Korean, Japanese, and Chinese input. Typing over a selection (or right after deleting) shows as one **Replace** card. Suggestions are stored as comments with a `suggest:insert` / `suggest:delete` header key, and `replaces:` links a replacement's two halves.
 
 ## 0.2.18
 
