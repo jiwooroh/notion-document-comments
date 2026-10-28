@@ -1,6 +1,6 @@
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
-import { anchorRange } from "../format/parse";
+import { anchorRange, anchorStyle } from "../format/parse";
 import type { ParsedComment } from "../format/types";
 import { isCodeComment } from "../format/code-anchor";
 import { findRenderedMatch } from "../reading/highlight";
@@ -139,7 +139,7 @@ class HtmlHighlights {
 				if (!line) continue;
 				const parts = findRenderedMatch(line, source);
 				if (!parts) continue;
-				const name = highlightName(c.color, c.style, c.status === "resolved");
+				const name = highlightName(c.color, anchorStyle(c), c.status === "resolved");
 				for (const part of parts) {
 					// Only inside rendered HTML; the rest already has the mark decoration.
 					if (!lost && !part.node.parentElement?.closest(RENDERED_WIDGET)) continue;

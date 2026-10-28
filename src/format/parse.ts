@@ -1,4 +1,4 @@
-import { CommentData, CommentStatus, ParsedComment, Reaction, TextRange, ThreadEntry } from "./types";
+import { CommentData, CommentStatus, ParsedComment, Reaction, SuggestionKind, TextRange, ThreadEntry } from "./types";
 import { decodeCodeQuote, splitReactionAuthors, unescapeText } from "./escape";
 
 // Anchor + body markers. All are HTML comments so they're invisible everywhere.
@@ -64,9 +64,11 @@ export const parseComments = (doc: string): ParsedComment[] => {
 		track(id);
 	}
 
-	return order.map((id) => {
+	const parsed: ParsedComment[] = order.map((id) => {
 		const body = bodies.get(id);
 		const data: CommentData = body ? body.data : { status: "open", thread: [], reactions: [] };
+		const open = opens.get(id) ?? null;
+		const close = closes.get(id) ?? null;
 		return {
 			id,
 			author: data.author,
@@ -76,13 +78,48 @@ export const parseComments = (doc: string): ParsedComment[] => {
 			codeLines: data.codeLines,
 			color: data.color,
 			style: data.style,
+			suggest: data.suggest,
+			replaces: data.replaces,
 			thread: data.thread,
 			reactions: data.reactions,
-			open: opens.get(id) ?? null,
-			close: closes.get(id) ?? null,
+			open,
+			close,
 			body: body ? body.range : null,
+			...(data.suggest && open && close && open.to <= close.from
+				? { text: stripMarkers(doc.slice(open.to, close.from)) }
+				: {}),
 		};
 	});
+	for (const [ins, del] of replacementPairs(parsed)) ins.replacedText = del.text;
+	return parsed;
+};
+
+/** Each anchored insertion with the anchored deletion it replaces. */
+const replacementPairs = (comments: ParsedComment[]): Array<[ParsedComment, ParsedComment]> => {
+	const pairs: Array<[ParsedComment, ParsedComment]> = [];
+	for (const ins of comments) {
+		if (ins.suggest !== "insert" || !ins.replaces || ins.text === undefined) continue;
+		const del = comments.find((c) => c.id === ins.replaces && c.suggest === "delete" && c.text !== undefined);
+		if (del) pairs.push([ins, del]);
+	}
+	return pairs;
+};
+
+/** Deletion id → id of the insertion replacing it. The deletion has no card of
+ *  its own: its text is shown, and resolved, with the insertion's. */
+export const replacedBy = (comments: ParsedComment[]): Map<string, string> => {
+	return new Map(replacementPairs(comments).map(([ins, del]) => [del.id, ins.id]));
+};
+
+/** The comments that get a card: all but deletions shown in a "Replace" card. */
+export const withoutReplacedDeletions = (comments: ParsedComment[]): ParsedComment[] => {
+	const replaced = replacedBy(comments);
+	return replaced.size ? comments.filter((c) => !replaced.has(c.id)) : comments;
+};
+
+/** Text with any nested comment markers and bodies removed — what a reader sees. */
+export const stripMarkers = (text: string): string => {
+	return text.replace(/<!--\/?c:[A-Za-z0-9]+-->/g, "").replace(/\n?<!--co:[A-Za-z0-9]+[\s\S]*?-->/g, "");
 };
 
 /** The set of ids already present in a document (for id generation). */
@@ -142,7 +179,24 @@ const parseHeader = (header: string): Omit<CommentData, "thread" | "reactions"> 
 		codeLines,
 		color: attrs.color,
 		style: attrs.style,
+		suggest: parseSuggest(attrs.suggest),
+		replaces: attrs.replaces,
 	};
+};
+
+const parseSuggest = (value: string | undefined): SuggestionKind | undefined => {
+	return value === "insert" || value === "delete" ? value : undefined;
+};
+
+/** A suggested edit (an insertion or a deletion) rather than a remark. */
+export const isSuggestion = (c: ParsedComment): boolean => {
+	return c.suggest !== undefined;
+};
+
+/** The annotation-style id the anchor is drawn with. A suggestion is always
+ *  drawn as one (`suggest-insert` / `suggest-delete`), whatever its override. */
+export const anchorStyle = (c: Pick<CommentData, "style" | "suggest">): string | undefined => {
+	return c.suggest ? `suggest-${c.suggest}` : c.style;
 };
 
 /** Parse a `line:F-T` (or `line:F`) header value into an inclusive line range. */

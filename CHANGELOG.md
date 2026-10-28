@@ -5,6 +5,28 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.2.20
+
+- **Suggesting mode** (like Notion's "Suggest edits" and Google Docs' "Suggesting"): switch a note between **Editing** and **Suggesting**. While suggesting, your edits are proposed instead of made:
+  - What you type is a suggested **addition**, in teal with an underline.
+  - What you delete stays in place as a suggested **deletion**, struck through in gray.
+  - Typing over a selection, or right after deleting, is one suggested **replacement**: the old text struck through, followed by the new text.
+  - Suggestions use text color and a line only, never a fill, so they never look like a comment highlight.
+
+- **Suggestion cards:** each suggestion gets a card beside the text with who suggested it and what it adds, deletes, or replaces ("Replace ~~old~~ → new"), plus **✓ Accept** and **✕ Reject**. Click a card to reply, like any comment. Cards appear as you type, from the first character.
+
+- **Switching modes:** the ✏️ / 💡 button at the top of each note and in the ribbon (works on iPad and phones), **✏️ Editing / 💡 Suggesting** in the desktop status bar, the **Toggle suggesting mode** command, or **Editing mode** in settings.
+
+- **New commands:** **Accept all suggestions in this note** and **Reject all suggestions in this note**.
+
+- **Editing your own suggestion:** keep typing to grow it; Backspace inside it really deletes, and deleting all of it removes the suggestion. Cmd/Ctrl+Z removes the typed text and its card together.
+
+- **Korean, Japanese, and Chinese input** works in Suggesting mode, including typing over a selection.
+
+- Suggestions show in Live Preview (tables and inline HTML too), Source view, Reading view, the comments sidebar, and PDF export. Edits inside code, front matter, and link targets are made directly, since a marker there would break the Markdown.
+
+- **Format:** a suggestion is a comment whose header has `suggest:insert` or `suggest:delete`; `replaces:ID` links a replacement's new text to the deletion it replaces. Other Markdown apps show both the suggested and the original text. The agent skill documents how to accept or reject one by hand.
+
 ## 0.2.19
 
 - **Resolved comments in the status bar menu:** the comment-style menu in the status bar has a "Show resolved comments" checkbox, so you can show or hide resolved comments without opening settings.
@@ -250,7 +272,7 @@ Text + highlight uses the text color on its matching highlight (e.g. light-mode 
 
 ## 0.2.0
 
-First release of Lucy's fork, based on the original plugin's 0.1.12 by Kyle McDonald.
+First release of Jiwoo's fork, based on the original plugin's 0.1.12 by Kyle McDonald.
 
 - **Text formatting toolbar in comments:** select text in a comment box to apply bold, italic, underline, strikethrough, text color, or highlight.
 - **Highlight colors:** theme default or 9 Notion-style colors, an intensity slider, and custom hex values per color for light and dark themes.

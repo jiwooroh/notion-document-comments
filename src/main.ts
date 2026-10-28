@@ -10,6 +10,7 @@ import {
 	TFile,
 	WorkspaceLeaf,
 	debounce,
+	setIcon,
 } from "obsidian";
 import { Result } from "better-result";
 import { EditorView } from "@codemirror/view";
@@ -18,7 +19,8 @@ import { marginPlugin } from "./editor/margin";
 import { commentConfig } from "./editor/config";
 import { editorLayoutField } from "./editor/layout";
 import { draftField, setDraft } from "./editor/draft";
-import { addComment, insertCommentInFile } from "./editor/commands";
+import { addComment, insertCommentInFile, resolveAllSuggestions } from "./editor/commands";
+import { suggestExtension } from "./editor/suggest";
 import { findHighlightAtSelection } from "./editor/edits";
 import { findSectionRange, highlightPostProcessor, mapReadingSelection } from "./reading/highlight";
 import { ReadingDeps, ReadingMarginManager } from "./reading/margin";
@@ -54,6 +56,10 @@ export default class DocCommentsPlugin extends Plugin {
 	private sidebarOpen = false;
 	private textToolbar: TextFormatToolbar | null = null;
 	private cardViewStatus: HTMLElement | null = null;
+	private editModeStatus: HTMLElement | null = null;
+	private editModeRibbon: HTMLElement | null = null;
+	/** The Editing / Suggesting button in each open note's header. */
+	private editModeActions = new Map<MarkdownView, HTMLElement>();
 
 	async onload(): Promise<void> {
 		await this.loadSettings();
@@ -75,6 +81,7 @@ export default class DocCommentsPlugin extends Plugin {
 			listBelowTaskPlugin,
 			activeAnchorField,
 			draftField,
+			suggestExtension,
 			commentConfig.of({
 				app: this.app,
 				renderMarkdown: (markdown, el) =>
@@ -92,6 +99,7 @@ export default class DocCommentsPlugin extends Plugin {
 				sidebarOpen: () => this.sidebarOpen,
 				openInSidebar: (id) => void this.revealComment(id),
 				isMobile: () => Platform.isPhone,
+				suggesting: () => this.settings.editMode === "suggest",
 			}),
 			// Reflects dc-has / dc-highlights / dc-hide-resolved onto .cm-editor so the
 			// stylesheet caps the text column without a :has() selector.
@@ -293,6 +301,45 @@ export default class DocCommentsPlugin extends Plugin {
 		});
 		this.applyCardView();
 
+		// Status bar: Editing / Suggesting, click to switch (Notion's mode menu).
+		this.editModeStatus = this.addStatusBarItem();
+		this.editModeStatus.addClass("mod-clickable", "dc-edit-mode-status");
+		this.editModeStatus.setAttribute("aria-label", "Editing mode");
+		this.registerDomEvent(this.editModeStatus, "click", (evt) => {
+			const menu = new Menu();
+			for (const [id, label] of [
+				["edit", "Editing (change the text directly)"],
+				["suggest", "Suggesting (edits become suggestions)"],
+			] as const) {
+				menu.addItem((item) =>
+					item
+						.setTitle(label)
+						.setChecked(this.settings.editMode === id)
+						.onClick(() => void this.setEditMode(id)),
+				);
+			}
+			menu.showAtMouseEvent(evt);
+		});
+		this.applyEditMode();
+
+		this.addCommand({
+			id: "toggle-suggesting",
+			name: "Toggle suggesting mode",
+			callback: () => void this.toggleEditMode(),
+		});
+
+		this.addCommand({
+			id: "accept-all-suggestions",
+			name: "Accept all suggestions in this note",
+			editorCallback: (editor) => this.resolveAllSuggestions(editor, true),
+		});
+
+		this.addCommand({
+			id: "reject-all-suggestions",
+			name: "Reject all suggestions in this note",
+			editorCallback: (editor) => this.resolveAllSuggestions(editor, false),
+		});
+
 		// Diagnostic for "the note scrolls sideways / blank strip on the right"
 		// (mostly phones, where there are no developer tools): outline whatever
 		// sticks out past the note's right edge and name it.
@@ -337,6 +384,12 @@ export default class DocCommentsPlugin extends Plugin {
 		);
 		this.updateRibbon();
 		this.addRibbonIcon("messages-square", "Open comments sidebar", () => void this.activateSidebar());
+		// The status bar doesn't exist on iPad and phones, so the mode switch is
+		// also in the ribbon and in each note's header (where Notion puts it).
+		this.editModeRibbon = this.addRibbonIcon("pencil", "Switch to suggesting", () => void this.toggleEditMode());
+		this.app.workspace.onLayoutReady(() => this.addEditModeActions());
+		this.registerEvent(this.app.workspace.on("layout-change", () => this.addEditModeActions()));
+		this.applyEditMode();
 
 		this.addSettingTab(new DocCommentsSettingTab(this.app, this));
 		this.textToolbar = new TextFormatToolbar();
@@ -518,6 +571,66 @@ export default class DocCommentsPlugin extends Plugin {
 		this.applyCardView();
 	}
 
+	async setEditMode(mode: string): Promise<void> {
+		this.settings.editMode = mode;
+		await this.saveSettings();
+		this.applyEditMode();
+		new Notice(mode === "suggest" ? "Suggesting: your edits become suggestions" : "Editing");
+	}
+
+	private toggleEditMode(): Promise<void> {
+		return this.setEditMode(this.settings.editMode === "suggest" ? "edit" : "suggest");
+	}
+
+	/** Status bar label, ribbon and note-header buttons, and a body class. */
+	applyEditMode(): void {
+		const suggesting = this.settings.editMode === "suggest";
+		activeDocument.body.toggleClass("dc-suggesting", suggesting);
+		this.editModeStatus?.setText(suggesting ? "💡 Suggesting" : "✏️ Editing");
+		this.editModeStatus?.toggleClass("is-suggesting", suggesting);
+		const buttons = [this.editModeRibbon, ...this.editModeActions.values()];
+		for (const el of buttons) {
+			if (!el) continue;
+			setIcon(el, suggesting ? "lightbulb" : "pencil");
+			el.setAttribute(
+				"aria-label",
+				suggesting ? "Suggesting — switch to editing" : "Editing — switch to suggesting",
+			);
+			el.toggleClass("is-active", suggesting);
+			el.addClass("dc-edit-mode-button");
+		}
+	}
+
+	/** Add the mode button to notes opened since the last layout change, and
+	 *  forget notes that were closed. */
+	private addEditModeActions(): void {
+		for (const view of Array.from(this.editModeActions.keys())) {
+			if (!view.containerEl.isConnected) this.editModeActions.delete(view);
+		}
+		let added = false;
+		for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+			const view = leaf.view;
+			if (!(view instanceof MarkdownView) || this.editModeActions.has(view)) continue;
+			const el = view.addAction("pencil", "Editing — switch to suggesting", () => void this.toggleEditMode());
+			this.editModeActions.set(view, el);
+			added = true;
+		}
+		if (added) this.applyEditMode();
+	}
+
+	private resolveAllSuggestions(editor: Editor, accept: boolean): void {
+		const view = editorView(editor);
+		if (!view) {
+			new Notice("Couldn't access the editor.");
+			return;
+		}
+		resolveAllSuggestions(view, accept).match({
+			ok: (count) =>
+				new Notice(`${accept ? "Accepted" : "Rejected"} ${count} suggestion${count === 1 ? "" : "s"}`),
+			err: (message) => new Notice(message),
+		});
+	}
+
 	/** Outline (for 15s) the elements in the note that stick out past its right
 	 *  edge, and list the widest few in a notice. */
 	private findTooWide(view: MarkdownView): void {
@@ -669,8 +782,10 @@ export default class DocCommentsPlugin extends Plugin {
 	onunload(): void {
 		this.readingManager?.destroy();
 		this.textToolbar?.destroy();
-		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple", "dc-compact-cards");
+		activeDocument.body.removeClass("dc-hide-author", "dc-scheme-apple", "dc-compact-cards", "dc-suggesting");
 		clearProfile();
+		for (const el of this.editModeActions.values()) el.remove();
+		this.editModeActions.clear();
 	}
 
 	private authorName(): string {

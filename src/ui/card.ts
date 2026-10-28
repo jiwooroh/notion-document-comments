@@ -6,6 +6,12 @@ import { autogrowTextarea, setIconSafe } from "./text-format";
 import { emojiGroups, firstEmoji } from "./emoji-picker";
 import { ANNOTATION_STYLES, HIGHLIGHT_COLORS } from "./highlight-colors";
 
+/** A suggestion's text for its card: whitespace collapsed, long text cut. */
+const suggestionSummary = (text: string): string => {
+	const flat = text.replace(/\s+/g, " ").trim();
+	return flat.length > 200 ? `${flat.slice(0, 200)}…` : flat;
+};
+
 /** Always-visible reactions; "+" opens every emoji (see emoji-picker.ts). */
 const QUICK_EMOJI = ["👍", "📌", "⭐️", "👀"];
 
@@ -38,6 +44,8 @@ export type CardCallbacks = {
 	 *  ("highlight", "underline", or "both" — see ui/highlight-colors.ts). */
 	setStyle: (id: string, styleId: string | undefined) => void;
 	remove: (id: string) => void;
+	/** Accept (apply) or reject (drop) a suggested edit. */
+	resolveSuggestion: (id: string, accept: boolean) => void;
 	editEntry: (id: string, index: number, text: string) => void;
 	deleteEntry: (id: string, index: number) => void;
 	toggleReaction: (id: string, emoji: string) => void;
@@ -129,7 +137,7 @@ export class Card {
 				}
 			}
 			this.cb.onClickAnchor(this.id);
-			if (this.comment.thread.length === 0) {
+			if (this.comment.thread.length === 0 && !this.comment.suggest) {
 				this.startEdit(0);
 				return;
 			}
@@ -150,6 +158,18 @@ export class Card {
 	}
 
 	update(comment: ParsedComment): void {
+		// Typing inside a suggestion changes only its text: update that one span
+		// instead of rebuilding the card (and re-laying out the margin) per keystroke.
+		if (comment.suggest && cardSignature({ ...this.comment, text: comment.text }) === cardSignature(comment)) {
+			const span = this.el.querySelector(`.dc-suggestion__text--${comment.suggest}`);
+			const text = suggestionSummary(comment.text ?? comment.quote ?? "");
+			if (span && text) {
+				this.comment = comment;
+				span.setText(text);
+				span.removeClass("is-empty");
+				return;
+			}
+		}
 		this.comment = comment;
 		// Keep an open entry editor across external updates; commit/cancel clear
 		// editingIndex first, so a landed edit still collapses the editor. Only drop
@@ -302,6 +322,8 @@ export class Card {
 		for (const cls of Array.from(this.el.classList)) if (cls.startsWith("dc-color-")) this.el.removeClass(cls);
 		if (c.color) this.el.addClass(`dc-color-${c.color}`);
 		this.el.toggleClass("is-open", this.open);
+		this.el.toggleClass("dc-card--suggest-insert", c.suggest === "insert");
+		this.el.toggleClass("dc-card--suggest-delete", c.suggest === "delete");
 
 		// A margin card floats right next to its highlighted text, so the anchor
 		// is always visible right there. A sidebar card has no such link (cb has
@@ -309,7 +331,7 @@ export class Card {
 		// in the sidebar) — show the originally-selected text so the comment
 		// still makes sense out of context, the way Notion's "All comments"
 		// panel always quotes the anchor.
-		if (!this.cb.openInSidebar && c.quote) {
+		if (!this.cb.openInSidebar && c.quote && !c.suggest) {
 			this.el.createDiv({ cls: "dc-card-quote", text: c.quote });
 		}
 
@@ -319,7 +341,13 @@ export class Card {
 		this.clipEl = clip;
 		const thread = clip.createDiv("dc-thread");
 		this.threadEl = thread;
-		cardEntries(c).forEach((entry, i) => this.renderEntry(thread, entry, i));
+		if (c.suggest) {
+			// A suggestion leads with what it changes; its thread holds replies only.
+			this.renderSuggestion(thread);
+			c.thread.forEach((entry, i) => this.renderEntry(thread, { ...entry, empty: false }, i));
+		} else {
+			cardEntries(c).forEach((entry, i) => this.renderEntry(thread, entry, i));
+		}
 		if (this.open && this.editingIndex < 0) this.renderComposer(clip);
 
 		this.footEl = this.el.createDiv("dc-card-foot");
@@ -399,7 +427,56 @@ export class Card {
 		});
 	}
 
+	/** The suggestion's own row: who suggested it, what it adds or deletes, and
+	 *  Accept / Reject. */
+	private renderSuggestion(parent: HTMLElement): void {
+		const c = this.comment;
+		const row = parent.createDiv("dc-entry dc-suggestion");
+		row.toggleClass("is-mine", !!c.author && c.author === this.cb.getAuthor());
+		const head = row.createDiv("dc-entry__head");
+		const meta = head.createDiv("dc-entry__meta");
+		meta.createSpan({ cls: "dc-avatar" });
+		meta.createSpan({ cls: "dc-entry__author", text: c.author || "—" });
+		const time = formatRelativeTime(c.createdAt);
+		if (time) meta.createSpan({ cls: "dc-entry__time", text: time });
+
+		const bar = head.createDiv("dc-entry__bar dc-suggestion__bar");
+		this.iconButton(bar, "check", "Accept", () => this.cb.resolveSuggestion(this.id, true), "dc-act--accept", "✓");
+		this.iconButton(bar, "x", "Reject", () => this.cb.resolveSuggestion(this.id, false), "dc-act--reject", "✕");
+		this.iconButton(
+			bar,
+			"smile-plus",
+			"React",
+			(e) => this.openReactionPicker(e.currentTarget as HTMLElement),
+			"",
+			"☺",
+		);
+
+		const body = row.createDiv("dc-suggestion__body");
+		const replacing = c.replacedText !== undefined;
+		body.createSpan({
+			cls: "dc-suggestion__verb",
+			text: replacing ? "Replace" : c.suggest === "insert" ? "Add" : "Delete",
+		});
+		const part = (kind: string, raw: string) => {
+			const text = suggestionSummary(raw);
+			body.createSpan({
+				cls: `dc-suggestion__text dc-suggestion__text--${kind}${text ? "" : " is-empty"}`,
+				// Nothing typed yet (an IME is composing the first character).
+				text: text || (raw === "" ? "…" : "line break"),
+			});
+		};
+		if (replacing) {
+			part("delete", c.replacedText ?? "");
+			body.createSpan({ cls: "dc-suggestion__arrow", text: "→" });
+		}
+		part(c.suggest ?? "insert", c.text ?? c.quote ?? "");
+		if (c.reactions.length > 0) this.renderReactions(row);
+	}
+
 	private renderEntry(parent: HTMLElement, entry: CardEntry, i: number): void {
+		// A suggestion's replies are all replies: its root is the suggestion row.
+		const root = i === 0 && !this.comment.suggest;
 		const row = parent.createDiv("dc-entry");
 		// Your own entries get your profile photo (painted from a body-level CSS
 		// variable — see ui/profile.ts) and follow the "Show my profile" switch.
@@ -427,7 +504,7 @@ export class Card {
 		// No Reply button: click the card to reply. iPad keeps the header to
 		// React + ⋯; Resolve lives in the ⋯ menu there (see openMoreMenu), so the
 		// narrower tablet card isn't crowded.
-		if (i === 0 && !Platform.isTablet) {
+		if (root && !Platform.isTablet) {
 			const resolved = this.comment.status === "resolved";
 			this.iconButton(
 				bar,
@@ -488,7 +565,7 @@ export class Card {
 			});
 		}
 
-		if (i === 0 && this.comment.reactions.length > 0) this.renderReactions(row);
+		if (root && this.comment.reactions.length > 0) this.renderReactions(row);
 	}
 
 	/** Render comment text as Markdown (code spans, links, lists, …). Falls back to
@@ -572,7 +649,10 @@ export class Card {
 		const box = parent.createDiv("dc-field dc-field--composer");
 		const ta = box.createEl("textarea", {
 			cls: "dc-field__input",
-			attr: { placeholder: this.comment.thread.length === 0 ? "Comment…" : "Reply…", rows: "1" },
+			attr: {
+				placeholder: this.comment.thread.length === 0 && !this.comment.suggest ? "Comment…" : "Reply…",
+				rows: "1",
+			},
 		});
 		ta.value = this.draft;
 		autogrowTextarea(ta);
@@ -712,13 +792,16 @@ export class Card {
 		};
 		// A reply's own color follows the thread's anchor (entry 0) — only the root
 		// entry's menu offers changing it.
-		if (index === 0 && Platform.isTablet) {
+		// A suggestion's replies are all ordinary replies (its root is the
+		// suggestion row, which has Accept / Reject instead of a menu).
+		const root = index === 0 && !this.comment.suggest;
+		if (root && Platform.isTablet) {
 			const resolved = this.comment.status === "resolved";
 			addItem(resolved ? "rotate-ccw" : "check", resolved ? "Reopen" : "Resolve", () =>
 				this.cb.setResolved(this.id, !resolved),
 			);
 		}
-		if (index === 0) {
+		if (root) {
 			// Measured now, while the ⋯ button is surely on screen: by the time a menu
 			// item is clicked the card may have redrawn or closed (see anchorRect).
 			const at = anchor.getBoundingClientRect();
@@ -727,8 +810,8 @@ export class Card {
 		}
 		addItem(
 			"trash",
-			index === 0 ? "Delete comment" : "Delete reply",
-			() => (index === 0 ? this.cb.remove(this.id) : this.cb.deleteEntry(this.id, index)),
+			root ? "Delete comment" : "Delete reply",
+			() => (root ? this.cb.remove(this.id) : this.cb.deleteEntry(this.id, index)),
 			true,
 		);
 

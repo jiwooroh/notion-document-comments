@@ -61,6 +61,9 @@ export type DocCommentsSettings = {
 	/** How a comment's anchor is marked in the text: "highlight" (fill only),
 	 *  "underline" (no fill), or "both". See ui/highlight-colors.ts. */
 	annotationStyle: string;
+	/** "edit" changes the text directly; "suggest" turns your edits into
+	 *  suggestions others can accept or reject (see editor/suggest.ts). */
+	editMode: string;
 };
 
 export const DEFAULT_SETTINGS: DocCommentsSettings = {
@@ -82,6 +85,7 @@ export const DEFAULT_SETTINGS: DocCommentsSettings = {
 	highlightColorsLight: {},
 	highlightColorsDark: {},
 	annotationStyle: DEFAULT_ANNOTATION_STYLE,
+	editMode: "edit",
 };
 
 type DocCommentsSettingKey = keyof DocCommentsSettings;
@@ -122,6 +126,13 @@ const SETTING_META: ReadonlyArray<{
 		desc: 'Name attached to comments you create. Defaults to "me".',
 		aliases: ["comment author", "display name"],
 		control: { type: "text", placeholder: "Me" },
+	},
+	{
+		key: "editMode",
+		name: "Editing mode",
+		desc: "Editing changes the text directly. Suggesting keeps the original text: what you type is marked as a suggested addition, and what you delete is struck through as a suggested deletion, each with a card to accept or reject it. Also switchable from the status bar.",
+		aliases: ["suggest", "suggesting", "suggest edits", "track changes", "review"],
+		control: { type: "dropdown", options: { edit: "Editing", suggest: "Suggesting" } },
 	},
 	{
 		key: "showComments",
@@ -511,6 +522,7 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		if (key === "showAuthor") this.plugin.applyAuthorVisibility();
 		if (["cardView", "cardIndicator", "cardIndicatorWidth", "cardTintStrength"].includes(key))
 			this.plugin.applyCardView();
+		if (key === "editMode") this.plugin.applyEditMode();
 		// Your name decides which comments are "yours" (profile photo, hidden own
 		// name), so a new name re-applies the profile right away too.
 		if (key === "showMyProfile" || key === "author") this.plugin.applyProfile();
