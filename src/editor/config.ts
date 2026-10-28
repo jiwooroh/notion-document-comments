@@ -25,6 +25,9 @@ export type CommentConfig = {
 	 *  mobile doesn't have, so there it's suppressed (text stays full-width) and
 	 *  comments live in the sidebar panel instead; the in-text highlights remain. */
 	isMobile?: () => boolean;
+	/** Suggesting mode: typing and deleting create suggested edits instead of
+	 *  changing the text (see editor/suggest.ts). */
+	suggesting?: () => boolean;
 };
 
 const DEFAULT: CommentConfig = {
