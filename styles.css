@@ -1964,17 +1964,22 @@ body.dc-pdf-cards .dc-narrow .doc-comment-margin .doc-comment-card.dc-pdf-open::
 
 /* ---------- Suggesting mode ----------
    A suggestion is a comment anchor drawn as an edit: suggested additions in
-   green with an underline, suggested deletions struck through in gray (see
+   teal with an underline, suggested deletions struck through in gray (see
    editor/suggest.ts). The :is() bumps specificity past the "comments hidden"
    rule above — a suggestion is a change to the text, so it stays visible. */
+/* Teal is in neither highlight palette (Notion or Apple), and additions get
+   no fill, so a suggestion never reads as a comment highlight. */
 body {
-	--dc-suggest-insert: var(--color-green);
+	--dc-suggest-insert: #0E8C83;
 	--dc-suggest-delete: var(--text-faint);
 	/* The Reject button stays red: it's an action, not the deleted text. */
 	--dc-suggest-reject: var(--color-red);
 }
+body.theme-dark {
+	--dc-suggest-insert: #3CC4B6;
+}
 body :is(.cm-editor, .markdown-reading-view, .markdown-rendered) .doc-comment-span.dc-style-suggest-insert {
-	background-color: color-mix(in srgb, var(--dc-suggest-insert) 8%, transparent);
+	background-color: transparent;
 	border-bottom: 2px solid color-mix(in srgb, var(--dc-suggest-insert) 70%, transparent);
 	color: var(--dc-suggest-insert);
 	pointer-events: auto;
