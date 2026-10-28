@@ -16,7 +16,7 @@ import { closeMarker, openMarker, serializeBody } from "../format/serialize";
 import { generateId } from "../format/ids";
 import { Change, applyChanges, blockEnd, computeDeleteComment, toData } from "./edits";
 import { commentConfig } from "./config";
-import { pluginEdit } from "./state";
+import { getComments, pluginEdit } from "./state";
 
 /*
  * Suggesting mode (Notion / Google Docs "Suggest edits").
@@ -80,8 +80,10 @@ export const planSuggestedEdits = (
 	ctx: SuggestContext,
 	direction: Direction,
 	pending: TextRange[] = [],
+	/** `doc` already parsed (the editor keeps it parsed), to save a re-parse. */
+	parsed?: ParsedComment[],
 ): SuggestPlan => {
-	const comments = parseComments(doc);
+	const comments = parsed ?? parseComments(doc);
 	const zones = classifyZones(doc, comments, ctx.author);
 	const ids = new Set(comments.map((c) => c.id));
 	const newId = () => {
@@ -142,7 +144,6 @@ export const planSuggestedEdits = (
 			push(from, from, openMarker(id));
 			push(to, to, closeMarker(id));
 			pushBody(id, "delete", blockEnd(doc, to), doc.slice(from, to));
-			touched.add(id);
 		}
 	};
 
@@ -205,14 +206,15 @@ export const planSuggestedEdits = (
 			if (own) at = own.open.to;
 		}
 		if (own || inPending(at, true)) {
-			if (own) touched.add(own.id);
+			// Typing inside your suggestion leaves its stored quote as it was:
+			// rewriting the body on every keystroke made typing slow, and the quote
+			// is only the fallback for a lost marker (the card reads the live text).
 			carets.push({ piece: push(at, at, edit.insert, caretIn(edit)) });
 		} else {
 			const id = newId();
 			const open = openMarker(id);
 			const piece = push(at, at, open + edit.insert + closeMarker(id), open.length + caretIn(edit));
 			pushBody(id, "insert", blockEnd(doc, at), edit.insert);
-			touched.add(id);
 			carets.push({ piece });
 		}
 	}
@@ -224,8 +226,8 @@ export const planSuggestedEdits = (
 		const offset = offsets.get(c.piece) ?? 0;
 		return set.mapPos(c.piece.from, -1) + offset + (c.piece.caret ?? 0);
 	});
-	const next = applyChanges(doc, changes);
-	return { changes, carets: caretPositions, followUp: refreshSuggestions(next, touched), deletedRanges };
+	const followUp = touched.size ? refreshSuggestions(applyChanges(doc, changes), touched) : [];
+	return { changes, carets: caretPositions, followUp, deletedRanges };
 };
 
 /**
@@ -266,17 +268,13 @@ export const planWrapPending = (
 		ids.add(id);
 		push(pos, pos, openMarker(id) + text + closeMarker(id));
 		pushBody(id, "delete", blockEnd(doc, pos), text);
-		touched.add(id);
 	}
 
 	for (const { from, to } of mergeRanges(ranges)) {
 		if (to <= from) continue;
 		if (strictlyInside(zones.untrackable, from) || strictlyInside(zones.untrackable, to)) continue;
 		const inside = zones.ownInserts.find((c) => from >= c.open.to && to <= c.close.from);
-		if (inside) {
-			touched.add(inside.id);
-			continue;
-		}
+		if (inside) continue;
 		const left = zones.ownInserts.find((c) => c.close.to === from);
 		const right = zones.ownInserts.find((c) => c.open.from === to);
 		if (left) {
@@ -293,12 +291,10 @@ export const planWrapPending = (
 			push(from, from, openMarker(id));
 			push(to, to, closeMarker(id));
 			pushBody(id, "insert", blockEnd(doc, to), doc.slice(from, to));
-			touched.add(id);
 		}
 	}
 	const { changes } = normalize(pieces);
-	const next = applyChanges(doc, changes);
-	return [changes, refreshSuggestions(next, touched)];
+	return [changes, touched.size ? refreshSuggestions(applyChanges(doc, changes), touched) : []];
 };
 
 /** Keep each touched suggestion's stored quote equal to its text, and drop an
@@ -573,6 +569,7 @@ const suggestFilter = EditorState.transactionFilter.of((tr) => {
 		context(tr.startState),
 		direction,
 		pendingRanges(tr.startState),
+		getComments(tr.startState),
 	);
 	// Composition input is left alone (rewriting it under the IME breaks it):
 	// pendingField tracks it and it's wrapped once the composition ends. The
@@ -640,25 +637,25 @@ const pendingFlush = ViewPlugin.fromClass(
 				context(view.state),
 				deletions,
 			);
+			// The wrap stays out of the undo history: undoing the typing then
+			// removes the text from between the markers, and cleanEmptyAfterUndo
+			// drops the emptied suggestion. Recording it as its own step instead
+			// made one Cmd+Z remove only the markers (the card), leaving the text.
+			// Restored deleted text is the exception: undoing the typing brings
+			// that text back itself, so its wrap must be undone with it.
+			const annotations = deletions.length
+				? [pluginEdit.of(true)]
+				: [pluginEdit.of(true), Transaction.addToHistory.of(false)];
 			const specs: TransactionSpec[] = [
 				{
 					changes,
 					effects: clearPending.of(null),
-					annotations: pluginEdit.of(true),
-					// The history always joins an "input.type.compose" event onto the
-					// previous one (the composed typing), whatever the time or selection
-					// changes in between, so one undo removes the text with its markers
-					// instead of leaving it behind untracked.
+					annotations,
 					userEvent: "input.type.compose",
 				},
 			];
 			if (followUp.length) {
-				specs.push({
-					changes: followUp,
-					sequential: true,
-					annotations: pluginEdit.of(true),
-					userEvent: "input.type.compose",
-				});
+				specs.push({ changes: followUp, sequential: true, annotations, userEvent: "input.type.compose" });
 			}
 			view.dispatch(...specs);
 		}
@@ -670,9 +667,35 @@ const pendingFlush = ViewPlugin.fromClass(
 	},
 );
 
-/** Typing over a selection with an IME: before the IME starts composing (it
- *  would replace the selection in the page itself), mark the selected text
- *  for deletion and put the caret after it, so the composition starts there. */
+/** After undo / redo, remove insertion suggestions left with no text (their
+ *  text was undone but their markers weren't part of that undo step). */
+const cleanEmptyAfterUndo = ViewPlugin.fromClass(
+	class {
+		constructor(private view: EditorView) {}
+
+		update(update: ViewUpdate): void {
+			if (!update.transactions.some((tr) => tr.isUserEvent("undo") || tr.isUserEvent("redo"))) return;
+			const empty = getComments(update.state).filter((c) => c.suggest === "insert" && c.text === "");
+			if (empty.length === 0) return;
+			queueMicrotask(() => {
+				const doc = this.view.state.doc.toString();
+				const changes = getComments(this.view.state)
+					.filter((c) => c.suggest === "insert" && c.text === "")
+					.flatMap((c) => computeDeleteComment(doc, c.id).unwrapOr([]));
+				if (changes.length === 0) return;
+				this.view.dispatch({
+					changes: changes.sort((a, b) => a.from - b.from),
+					annotations: [pluginEdit.of(true), Transaction.addToHistory.of(false)],
+				});
+			});
+		}
+	},
+);
+
+/** Typing over a selection: before the key is handled — an IME would replace
+ *  the selection in the page itself, out of the filter's reach — mark the
+ *  selected text for deletion and put the caret after it, so the new text
+ *  (composed or not) starts there. */
 const selectionGuard = ViewPlugin.fromClass(
 	class {
 		constructor(private view: EditorView) {
@@ -682,8 +705,11 @@ const selectionGuard = ViewPlugin.fromClass(
 		private onKeyDown = (event: KeyboardEvent): void => {
 			const { view } = this;
 			if (!isSuggesting(view.state) || event.metaKey || event.ctrlKey || event.altKey) return;
-			// "Process" is what an IME reports for the key that starts composing.
-			if (event.key !== "Process" && !event.isComposing) return;
+			// Any key that types something: a character, or "Process" / an IME key
+			// (some IMEs report the jamo itself). Enter, arrows, etc. are left to
+			// the transaction filter.
+			const types = event.key.length === 1 || event.key === "Process" || event.isComposing;
+			if (!types) return;
 			if (view.state.selection.ranges.every((r) => r.empty)) return;
 			view.dispatch({
 				changes: view.state.selection.ranges.map((r) => ({ from: r.from, to: r.to })),
@@ -706,4 +732,5 @@ export const suggestExtension: Extension = [
 	suggestFilter,
 	pendingFlush,
 	selectionGuard,
+	cleanEmptyAfterUndo,
 ];
