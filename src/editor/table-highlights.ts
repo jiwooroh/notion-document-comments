@@ -1,7 +1,7 @@
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { anchorRange } from "../format/parse";
-import type { ParsedComment } from "../format/types";
+import type { ParsedComment, SuggestionKind } from "../format/types";
 import { commentConfig, type CommentConfig } from "./config";
 import { getComments } from "./state";
 import { isHoverOnly } from "./active";
@@ -12,14 +12,19 @@ export type TableHighlightTarget = {
 	column: number;
 	quote: string;
 	resolved: boolean;
+	/** A suggested edit, drawn as one (colored text + line, no fill). */
+	suggest?: SuggestionKind;
 };
 
-type TableRanges = { open: Range[]; resolved: Range[] };
+type TableRanges = { open: Range[]; resolved: Range[]; insert: Range[]; delete: Range[] };
 type BrowserWindow = NonNullable<Document["defaultView"]>;
 type SourceTable = { start: number; end: number; from: number; to: number };
 
 const OPEN_HIGHLIGHT = "notion-style-comments-table";
 const RESOLVED_HIGHLIGHT = "notion-style-comments-table-resolved";
+const INSERT_HIGHLIGHT = "notion-style-comments-table-suggest-insert";
+const DELETE_HIGHLIGHT = "notion-style-comments-table-suggest-delete";
+const EMPTY = (): TableRanges => ({ open: [], resolved: [], insert: [], delete: [] });
 // `CSS.highlights` is a per-DOCUMENT global registry, so every editor view in a
 // window must merge its ranges before we set it. Keyed by document (pop-out
 // windows have their own) → each view's current ranges.
@@ -50,6 +55,7 @@ export const tableHighlightTargets = (doc: string, comments: ParsedComment[]): T
 				column: tableColumnAt(line.text, range.from - line.from),
 				quote,
 				resolved: comment.status === "resolved",
+				...(comment.suggest ? { suggest: comment.suggest } : {}),
 			});
 		}
 	}
@@ -89,7 +95,7 @@ class TableHighlights {
 	destroy(): void {
 		this.generation++;
 		this.observer.disconnect();
-		setViewRanges(this.view, { open: [], resolved: [] }, true);
+		setViewRanges(this.view, EMPTY(), true);
 	}
 
 	private syncActive(): void {
@@ -102,7 +108,7 @@ class TableHighlights {
 		} else {
 			this.observer.disconnect();
 			this.generation++;
-			setViewRanges(this.view, { open: [], resolved: [] });
+			setViewRanges(this.view, EMPTY());
 		}
 	}
 
@@ -119,7 +125,7 @@ class TableHighlights {
 		const cfg = this.view.state.facet(commentConfig);
 		const renderMarkdown = cfg.renderMarkdown;
 		if (!cfg.showComments()) {
-			setViewRanges(this.view, { open: [], resolved: [] });
+			setViewRanges(this.view, EMPTY());
 			return;
 		}
 
@@ -136,7 +142,7 @@ class TableHighlights {
 				return null;
 			}
 		});
-		const ranges: TableRanges = { open: [], resolved: [] };
+		const ranges = EMPTY();
 		const nextMatch = new WeakMap<Element, number>();
 
 		for (const target of targets) {
@@ -160,7 +166,8 @@ class TableHighlights {
 			if (generation !== this.generation) return;
 			if (!match) continue;
 			nextMatch.set(content, match.next);
-			(target.resolved ? ranges.resolved : ranges.open).push(match.range);
+			const bucket = target.suggest ?? (target.resolved ? "resolved" : "open");
+			ranges[bucket].push(match.range);
 		}
 
 		if (generation === this.generation) setViewRanges(this.view, ranges);
@@ -204,10 +211,11 @@ const setViewRanges = (view: EditorView, ranges: TableRanges, remove = false): v
 
 	const scope = doc.defaultView;
 	if (!scope?.CSS?.highlights || typeof scope.Highlight !== "function") return;
-	const allOpen = Array.from(viewRanges.values()).flatMap((entry) => entry.open);
-	const allResolved = Array.from(viewRanges.values()).flatMap((entry) => entry.resolved);
-	setHighlight(scope, OPEN_HIGHLIGHT, allOpen);
-	setHighlight(scope, RESOLVED_HIGHLIGHT, allResolved);
+	const all = (key: keyof TableRanges) => Array.from(viewRanges.values()).flatMap((entry) => entry[key]);
+	setHighlight(scope, OPEN_HIGHLIGHT, all("open"));
+	setHighlight(scope, RESOLVED_HIGHLIGHT, all("resolved"));
+	setHighlight(scope, INSERT_HIGHLIGHT, all("insert"));
+	setHighlight(scope, DELETE_HIGHLIGHT, all("delete"));
 };
 
 const setHighlight = (scope: BrowserWindow, name: string, ranges: Range[]): void => {
