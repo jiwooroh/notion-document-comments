@@ -29,9 +29,9 @@ const commentRange = (text: string, c: ParsedComment): TextRange | null =>
 	isCodeComment(c) ? resolveCodeAnchor(text, c) : anchorRange(c);
 
 /**
- * PDF-export post-processor: highlights each comment's text, puts a footnote
- * number after it, and floats the comment thread into a right margin column
- * beside it (Word-style).
+ * PDF-export post-processor: highlights each comment's text and floats the
+ * comment thread into a right margin column beside it (Word-style). No
+ * numbers: each note sits level with its highlight and shares its color.
  * Returns a promise — export awaits post-processor promises before printing.
  */
 export const printNotesPostProcessor = async (
@@ -55,7 +55,6 @@ export const printNotesPostProcessor = async (
 
 	const renders: Promise<void>[] = [];
 	let unplaced: HTMLElement | null = null;
-	let n = 0;
 	for (const { c, range } of ordered) {
 		const resolved = c.status === "resolved";
 		const anchored = text.slice(range.from, range.to);
@@ -67,11 +66,9 @@ export const printNotesPostProcessor = async (
 		}
 		if (c.thread.length === 0) continue;
 
-		n++;
 		const resolvedCls = resolved ? " is-resolved" : "";
 		const spans = el.querySelectorAll<HTMLElement>(`.doc-comment-span[data-cid="${CSS.escape(c.id)}"]`);
 		const last = spans[spans.length - 1];
-		if (last) last.insertAdjacentElement("afterend", createRef(el, n, resolvedCls));
 
 		// The note floats into the right margin, starting on the highlight's line.
 		// If the text couldn't be found (e.g. it spans formatting), list the thread
@@ -86,7 +83,6 @@ export const printNotesPostProcessor = async (
 			unplaced ??= el.createDiv({ cls: "dc-print-notes" });
 			note = unplaced.createDiv({ cls: `dc-print-note${resolvedCls}` });
 		}
-		note.createSpan({ cls: "dc-print-note__num", text: `${n}` });
 		const body = note.createDiv({ cls: "dc-print-note__body" });
 		if (c.quote && !last) body.createDiv({ cls: "dc-print-note__quote", text: `“${c.quote}”` });
 		for (const entry of c.thread) {
@@ -130,9 +126,3 @@ const useLightCustomColors = (el: HTMLElement, lightColors: Record<string, strin
  */
 const marginAnchor = (span: HTMLElement): HTMLElement =>
 	span.closest<HTMLElement>("pre, table, .callout, blockquote") ?? span;
-
-const createRef = (el: HTMLElement, n: number, extraCls: string): HTMLElement => {
-	const ref = el.createEl("sup", { cls: `dc-print-ref${extraCls}`, text: `${n}` });
-	ref.detach();
-	return ref;
-};

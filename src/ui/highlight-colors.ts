@@ -88,15 +88,15 @@ const PALETTES: Record<ColorScheme, Palette> = {
 		red: { light: { bg: "#FAECEC", fg: "#C4554D" }, dark: { bg: "#4D302B", fg: "#CF5D57" } },
 	},
 	apple: {
-		gray: { light: { bg: "#9898A026", fg: "#9898A0" }, dark: { bg: "#A0A0A726", fg: "#A0A0A7" } },
-		brown: { light: { bg: "#B38C6526", fg: "#B38C65" }, dark: { bg: "#B8946F26", fg: "#B8946F" } },
+		gray: { light: { bg: "#8A8A9326", fg: "#8A8A93" }, dark: { bg: "#9898A026", fg: "#9898A0" } },
+		brown: { light: { bg: "#A8845726", fg: "#A88457" }, dark: { bg: "#B89A7526", fg: "#B89A75" } },
 		orange: { light: { bg: "#F0934326", fg: "#F09343" }, dark: { bg: "#F0974826", fg: "#F09748" } },
-		yellow: { light: { bg: "#F4C24233", fg: "#F4C242" }, dark: { bg: "#F6CE5526", fg: "#F6CE55" } },
-		green: { light: { bg: "#30CF6A26", fg: "#30CF6A" }, dark: { bg: "#51DB8426", fg: "#51DB84" } },
-		blue: { light: { bg: "#3869F026", fg: "#3869F0" }, dark: { bg: "#598BF826", fg: "#598BF8" } },
+		yellow: { light: { bg: "#F5BA0A33", fg: "#F5BA0A" }, dark: { bg: "#F7CB3B26", fg: "#F7CB3B" } },
+		green: { light: { bg: "#5AC5B326", fg: "#5AC5B3" }, dark: { bg: "#63D7C326", fg: "#63D7C3" } },
+		blue: { light: { bg: "#3B86F726", fg: "#3B86F7" }, dark: { bg: "#3F8FF726", fg: "#3F8FF7" } },
 		purple: { light: { bg: "#BB3ED926", fg: "#BB3ED9" }, dark: { bg: "#CA43EA26", fg: "#CA43EA" } },
-		pink: { light: { bg: "#ED358E26", fg: "#ED358E" }, dark: { bg: "#F75FA826", fg: "#F75FA8" } },
-		red: { light: { bg: "#DE2E2126", fg: "#DE2E21" }, dark: { bg: "#EC5F5526", fg: "#EC5F55" } },
+		pink: { light: { bg: "#EB445A26", fg: "#EB445A" }, dark: { bg: "#EB4B6326", fg: "#EB4B63" } },
+		red: { light: { bg: "#EC131326", fg: "#EC1313" }, dark: { bg: "#F2363626", fg: "#F23636" } },
 	},
 };
 

@@ -42,6 +42,10 @@ export type DocCommentsSettings = {
 	/** How a card shows its comment's color: "line" (left bar), "tint" (card
 	 *  filled with the color), "dot", or "none". */
 	cardIndicator: string;
+	/** Thickness of the "line" indicator (the card's left edge), in px. */
+	cardIndicatorWidth: number;
+	/** How strongly a "Colored card" is filled with its comment's color, in %. */
+	cardTintStrength: number;
 	/** Include comments as numbered footnotes when exporting a note to PDF. */
 	printComments: boolean;
 	/** Which palette the 9 colors use: "notion" or "apple". */
@@ -69,6 +73,8 @@ export const DEFAULT_SETTINGS: DocCommentsSettings = {
 	showAuthor: true,
 	cardView: "default",
 	cardIndicator: "line",
+	cardIndicatorWidth: 3,
+	cardTintStrength: 9,
 	printComments: true,
 	colorScheme: DEFAULT_COLOR_SCHEME,
 	highlightColor: DEFAULT_HIGHLIGHT_COLOR,
@@ -147,6 +153,20 @@ const SETTING_META: ReadonlyArray<{
 			type: "dropdown",
 			options: { line: "Line on the left", tint: "Colored card", dot: "Dot", none: "Nothing" },
 		},
+	},
+	{
+		key: "cardIndicatorWidth",
+		name: "Indicator line thickness",
+		desc: 'Thickness of the colored left edge when the card color indicator is "Line on the left", in pixels.',
+		aliases: ["stripe width", "line width", "indicator thickness", "border"],
+		control: { type: "slider", min: 1, max: 8, step: 1 },
+	},
+	{
+		key: "cardTintStrength",
+		name: "Colored card strength",
+		desc: 'How strongly a card is filled with its comment\'s color when the card color indicator is "Colored card", in percent.',
+		aliases: ["card opacity", "tint", "card color strength", "colored card opacity"],
+		control: { type: "slider", min: 3, max: 40, step: 1 },
 	},
 	{
 		key: "showAuthor",
@@ -264,9 +284,17 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 				control: { type: "toggle", key: meta.key, defaultValue: DEFAULT_SETTINGS[meta.key] as boolean },
 			};
 		});
+		// Settings apply as soon as they change; what doesn't is a plugin update,
+		// which Obsidian only picks up on reload — new options then seem missing.
+		items.unshift({
+			name: "Changes apply right away",
+			desc: "Every option here takes effect immediately, no restart needed. After updating this plugin, reload Obsidian (⌘R / Ctrl+R) or close and reopen Settings to see new options.",
+			aliases: ["reload", "restart", "apply", "not showing"],
+		});
 		// The photo picker sits right after Author — the same "your profile" topic.
 		const authorIndex = SETTING_META.findIndex((m) => m.key === "author");
-		items.splice(authorIndex + 1, 0, {
+		items.splice(authorIndex + 2, 0, {
+			// +1 for the note above
 			name: "Profile photo",
 			render: (setting) => this.buildPhotoRow(setting),
 		});
@@ -306,6 +334,11 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		new Setting(containerEl)
+			.setName("Changes apply right away")
+			.setDesc(
+				"Every option here takes effect immediately, no restart needed. After updating this plugin, reload Obsidian (⌘R / Ctrl+R) or close and reopen Settings to see new options.",
+			);
 		for (const meta of SETTING_META) {
 			if (meta.key === "showComments") this.buildPhotoRow(new Setting(containerEl));
 			const setting = new Setting(containerEl).setName(meta.name).setDesc(meta.desc);
@@ -458,6 +491,8 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		else if (key === "showAuthor") this.plugin.settings.showAuthor = Boolean(value);
 		else if (key === "cardView") this.plugin.settings.cardView = String(value);
 		else if (key === "cardIndicator") this.plugin.settings.cardIndicator = String(value);
+		else if (key === "cardIndicatorWidth") this.plugin.settings.cardIndicatorWidth = Number(value);
+		else if (key === "cardTintStrength") this.plugin.settings.cardTintStrength = Number(value);
 		else if (key === "showMyProfile") this.plugin.settings.showMyProfile = Boolean(value);
 		else if (key === "highlightColor") this.plugin.settings.highlightColor = String(value);
 		else if (key === "colorScheme") this.plugin.settings.colorScheme = String(value);
@@ -474,7 +509,10 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		if (key !== "author" && !colorKeys.includes(key)) this.plugin.refreshEditors();
 		if (key === "showComments") this.plugin.updateRibbon();
 		if (key === "showAuthor") this.plugin.applyAuthorVisibility();
-		if (key === "cardView" || key === "cardIndicator") this.plugin.applyCardView();
-		if (key === "showMyProfile") this.plugin.applyProfile();
+		if (["cardView", "cardIndicator", "cardIndicatorWidth", "cardTintStrength"].includes(key))
+			this.plugin.applyCardView();
+		// Your name decides which comments are "yours" (profile photo, hidden own
+		// name), so a new name re-applies the profile right away too.
+		if (key === "showMyProfile" || key === "author") this.plugin.applyProfile();
 	}
 }
