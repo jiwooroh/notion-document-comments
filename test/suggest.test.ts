@@ -38,12 +38,12 @@ describe("suggesting mode", () => {
 		expect(doc.slice(0, caret).endsWith(" big")).toBe(true);
 	});
 
-	test("continued typing grows the same suggestion and its quote", () => {
+	test("continued typing grows the same suggestion", () => {
 		const first = type("Hello world", 5, " b");
 		const second = type(first.doc, first.caret, "ig");
 		expect(view(second.doc)).toBe("Hello{+ big+} world");
 		expect(parseComments(second.doc)).toHaveLength(1);
-		expect(parseComments(second.doc)[0]?.quote).toBe("big");
+		expect(parseComments(second.doc)[0]?.text).toBe(" big");
 	});
 
 	test("typing right after your suggestion's closing marker joins it", () => {
