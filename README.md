@@ -23,7 +23,7 @@ For more Notion-style editing, check out [Notion Selection Toolbar](https://obsi
 Like Notion's **Suggest edits** and Google Docs' **Suggesting**, switch a note from editing to suggesting so your changes are proposed instead of made:
 
 - **Editing**: you change the text directly, as usual.
-- **Suggesting**: the original text is kept. What you type shows as a suggested addition (green, underlined). What you delete stays in place, struck through in gray, as a suggested deletion. Typing over a selection, or typing right after deleting, suggests a replacement: the old text struck through, followed by the new text, with one **Replace** card that accepts or rejects both.
+- **Suggesting**: the original text is kept. What you type shows as a suggested addition (teal, underlined — a color the highlight palettes don't use, so it never looks like a comment highlight). What you delete stays in place, struck through in gray, as a suggested deletion. Typing over a selection, or typing right after deleting, suggests a replacement: the old text struck through, followed by the new text, with one **Replace** card that accepts or rejects both.
 
 Each suggestion gets a card beside the text with who suggested it, what it adds or deletes, and **✓ Accept** / **✕ Reject**. Click the card to reply to a suggestion, like any comment. Accepting an addition (or rejecting a deletion) keeps the text; accepting a deletion (or rejecting an addition) removes it.
 
