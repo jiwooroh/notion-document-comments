@@ -285,7 +285,12 @@ export class Card {
 	}
 
 	private onDocMouseDown = (e: MouseEvent): void => {
-		if (!this.el.contains(e.target as Node)) this.collapse();
+		const target = e.target as Node;
+		// The card's own popovers (⋯ menu, color/style/reaction pickers) live on
+		// <body>, outside the card; clicking in them isn't "outside". Closing here
+		// would also hide the compact card's ⋯ button the picker is placed under.
+		const inOwnPopover = target.instanceOf(Element) && !!target.closest(".dc-menu, .dc-pop");
+		if (!this.el.contains(target) && !inOwnPopover) this.collapse();
 	};
 
 	/** Quick, smooth grow/shrink of the body on open/close: animate the clip from its
@@ -743,6 +748,23 @@ export class Card {
 		this.cb.onResize();
 	}
 
+	/** Where to place a popover: under the button that opened it. A menu item
+	 *  click can make the card redraw first, which detaches that button (its
+	 *  rect is then 0,0 and the popover landed in the window's top-left corner);
+	 *  fall back to the card's current ⋯ button, then the card itself. */
+	private anchorRect(anchor: HTMLElement | DOMRect): DOMRect {
+		if (!("getBoundingClientRect" in anchor)) return anchor; // already a measured rect
+		if (anchor.isConnected) {
+			const rect = anchor.getBoundingClientRect();
+			if (rect.width > 0 || rect.height > 0) return rect;
+		}
+		// Hidden buttons (a collapsed compact card hides its header) measure as 0,0 too.
+		const more = this.el.querySelector<HTMLElement>('.dc-entry__bar [aria-label="More"]');
+		const moreRect = more?.getBoundingClientRect();
+		if (moreRect && (moreRect.width > 0 || moreRect.height > 0)) return moreRect;
+		return this.el.getBoundingClientRect();
+	}
+
 	/** The three-dot "More" menu: change color (root entry only) and delete. */
 	private openMoreMenu(anchor: HTMLElement, index: number): void {
 		const doc = this.el.ownerDocument;
@@ -780,8 +802,11 @@ export class Card {
 			);
 		}
 		if (root) {
-			addItem("palette", "Change color", () => this.openColorPicker(anchor));
-			addItem("underline", "Change style", () => this.openStylePicker(anchor));
+			// Measured now, while the ⋯ button is surely on screen: by the time a menu
+			// item is clicked the card may have redrawn or closed (see anchorRect).
+			const at = anchor.getBoundingClientRect();
+			addItem("palette", "Change color", () => this.openColorPicker(at));
+			addItem("underline", "Change style", () => this.openStylePicker(at));
 		}
 		addItem(
 			"trash",
@@ -790,14 +815,14 @@ export class Card {
 			true,
 		);
 
-		const rect = anchor.getBoundingClientRect();
+		const rect = this.anchorRect(anchor);
 		const left = Math.max(8, rect.right - menu.offsetWidth);
 		menu.setCssStyles({ top: `${rect.bottom + 4}px`, left: `${left}px` });
 		window.setTimeout(() => doc.addEventListener("mousedown", close, true), 0);
 	}
 
 	/** Swatch popover for the highlight color of this comment's anchor text. */
-	private openColorPicker(anchor: HTMLElement): void {
+	private openColorPicker(anchor: HTMLElement | DOMRect): void {
 		const doc = this.el.ownerDocument;
 		doc.querySelectorAll(".dc-pop, .dc-menu").forEach((p) => p.remove());
 		const pop = doc.body.createDiv("dc-pop dc-pop--colors");
@@ -838,7 +863,7 @@ export class Card {
 			});
 		}
 
-		const rect = anchor.getBoundingClientRect();
+		const rect = this.anchorRect(anchor);
 		const left = Math.max(8, rect.right - pop.offsetWidth);
 		pop.setCssStyles({ top: `${rect.bottom + 4}px`, left: `${left}px` });
 		window.setTimeout(() => doc.addEventListener("mousedown", close, true), 0);
@@ -848,7 +873,7 @@ export class Card {
 	 *  the plugin-wide default, or force this one comment to a highlight,
 	 *  underline, or both regardless of it. Reuses the .dc-menu shell (text options) rather
 	 *  than openColorPicker()'s swatches, since these are named styles, not colors. */
-	private openStylePicker(anchor: HTMLElement): void {
+	private openStylePicker(anchor: HTMLElement | DOMRect): void {
 		const doc = this.el.ownerDocument;
 		doc.querySelectorAll(".dc-pop, .dc-menu").forEach((p) => p.remove());
 		const menu = doc.body.createDiv("dc-menu");
@@ -876,7 +901,7 @@ export class Card {
 		addOption(undefined, "Default (plugin setting)");
 		for (const s of ANNOTATION_STYLES) addOption(s.id, s.label);
 
-		const rect = anchor.getBoundingClientRect();
+		const rect = this.anchorRect(anchor);
 		const left = Math.max(8, rect.right - menu.offsetWidth);
 		menu.setCssStyles({ top: `${rect.bottom + 4}px`, left: `${left}px` });
 		window.setTimeout(() => doc.addEventListener("mousedown", close, true), 0);
@@ -916,7 +941,7 @@ export class Card {
 
 		// Right-align the popover with the button so it grows left, and keep it
 		// on screen (flip above the button when it would run off the bottom).
-		const rect = anchor.getBoundingClientRect();
+		const rect = this.anchorRect(anchor);
 		const place = (): void => {
 			const win = doc.defaultView ?? window;
 			const left = Math.max(8, Math.min(rect.right - pop.offsetWidth, win.innerWidth - pop.offsetWidth - 8));

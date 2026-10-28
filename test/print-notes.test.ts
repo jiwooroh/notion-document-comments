@@ -2,7 +2,7 @@
 //
 // PDF export renders the whole note into `div.print > div` and runs
 // post-processors once on it with no section info. The print post-processor
-// highlights each comment there, numbers it, and lists its thread under its block. Comment text goes through MarkdownRenderer (a no-op
+// highlights each comment there and lists its thread under its block. Comment text goes through MarkdownRenderer (a no-op
 // in the mock), so these check structure, authors, numbering, and the settings.
 import { describe, expect, test } from "vitest";
 import { App, Component, type MarkdownPostProcessorContext } from "obsidian";
@@ -74,15 +74,16 @@ const exportRoot = (): { root: HTMLElement; first: HTMLElement; second: HTMLElem
 	return { root, first, second };
 };
 
-const ref = (root: HTMLElement, id: string): string | null =>
-	root.querySelector(`.doc-comment-span[data-cid='${id}'] + .dc-print-ref`)?.textContent ?? null;
+const noteFor = (root: HTMLElement, id: string): HTMLElement | null =>
+	root.querySelector(`.dc-print-note--margin[data-cid='${id}']`);
 
 describe("PDF export notes", () => {
-	test("highlights, numbers, and floats each thread beside its highlight", async () => {
+	test("highlights and floats each thread beside its highlight, without numbers", async () => {
 		const { root, first, second } = exportRoot();
 		await printNotesPostProcessor(root, ctx, deps());
-		expect(ref(root, "a1")).toBe("1");
-		expect(ref(root, "c3")).toBe("2");
+		expect(noteFor(root, "a1")).not.toBeNull();
+		expect(noteFor(root, "c3")).not.toBeNull();
+		expect(root.querySelector(".dc-print-ref, .dc-print-note__num")).toBeNull();
 		// One text row per thread entry (original + reply), no author names.
 		expect(first.querySelectorAll(".dc-print-note__text")).toHaveLength(2);
 		expect(first.querySelector(".dc-print-note__author")).toBeNull();
@@ -101,8 +102,8 @@ describe("PDF export notes", () => {
 	test("includes resolved comments when Show resolved comments is on", async () => {
 		const { root } = exportRoot();
 		await printNotesPostProcessor(root, ctx, deps({ showResolved: () => true }));
-		expect(ref(root, "b2")).toBe("2");
-		expect(ref(root, "c3")).toBe("3");
+		expect(noteFor(root, "b2")).not.toBeNull();
+		expect(noteFor(root, "c3")).not.toBeNull();
 		expect(root.querySelectorAll(".dc-print-note.is-resolved")).toHaveLength(1);
 	});
 
