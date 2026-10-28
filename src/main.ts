@@ -32,6 +32,7 @@ import { CommentModal } from "./ui/comment-modal";
 import { DEFAULT_SETTINGS, DocCommentsSettings, DocCommentsSettingTab } from "./settings";
 import { tableHighlightPlugin } from "./editor/table-highlights";
 import { htmlHighlightPlugin } from "./editor/html-highlights";
+import { listBelowTaskPlugin } from "./editor/list-bullets";
 import { activeAnchorField } from "./editor/active";
 import { computeLineStartMarkupFixes } from "./format/line-start";
 import { applyCommentEdit } from "./editor/routing";
@@ -77,6 +78,7 @@ export default class DocCommentsPlugin extends Plugin {
 			commentField,
 			tableHighlightPlugin,
 			htmlHighlightPlugin,
+			listBelowTaskPlugin,
 			activeAnchorField,
 			draftField,
 			suggestExtension,
@@ -225,21 +227,76 @@ export default class DocCommentsPlugin extends Plugin {
 		// Status bar (desktop): the current card view, click to switch.
 		this.cardViewStatus = this.addStatusBarItem();
 		this.cardViewStatus.addClass("mod-clickable", "dc-card-view-status");
-		this.cardViewStatus.setAttribute("aria-label", "Comment card view");
+		this.cardViewStatus.setAttribute("aria-label", "Comment style");
 		this.registerDomEvent(this.cardViewStatus, "click", (evt) => {
+			// Card view, card color indicator, the highlight's annotation style, and
+			// whether resolved comments show —
+			// the look of comments, switchable without opening settings.
 			const menu = new Menu();
-			for (const [id, label] of [
-				["default", "Default view"],
-				["compact", "Compact (comment text only)"],
-				["pdf", "PDF style (note icons)"],
-			] as const) {
-				menu.addItem((item) =>
-					item
-						.setTitle(label)
-						.setChecked(this.settings.cardView === id)
-						.onClick(() => void this.setCardView(id)),
-				);
-			}
+			const section = (
+				title: string,
+				options: ReadonlyArray<readonly [string, string]>,
+				current: string,
+				choose: (id: string) => Promise<void>,
+			): void => {
+				menu.addItem((item) => item.setTitle(title).setIsLabel(true));
+				for (const [id, label] of options) {
+					menu.addItem((item) =>
+						item
+							.setTitle(label)
+							.setChecked(current === id)
+							.onClick(() => void choose(id)),
+					);
+				}
+			};
+			section(
+				"Card view",
+				[
+					["default", "Default"],
+					["compact", "Compact (comment text only)"],
+					["pdf", "PDF style (note icons)"],
+				],
+				this.settings.cardView,
+				(id) => this.setCardView(id),
+			);
+			menu.addSeparator();
+			section(
+				"Card color",
+				[
+					["line", "Line on the left"],
+					["tint", "Colored card"],
+					["dot", "Dot"],
+					["none", "Nothing"],
+				],
+				this.settings.cardIndicator,
+				async (id) => {
+					this.settings.cardIndicator = id;
+					await this.saveSettings();
+					this.applyCardView();
+				},
+			);
+			menu.addSeparator();
+			section(
+				"Highlight style",
+				[
+					["highlight", "Highlight"],
+					["underline", "Underline"],
+					["both", "Highlight + underline"],
+				],
+				this.settings.annotationStyle,
+				async (id) => {
+					this.settings.annotationStyle = id;
+					await this.saveSettings();
+					this.refreshHighlightColor();
+				},
+			);
+			menu.addSeparator();
+			menu.addItem((item) =>
+				item
+					.setTitle("Show resolved comments")
+					.setChecked(this.settings.showResolved)
+					.onClick(() => void this.toggleResolved()),
+			);
 			menu.showAtMouseEvent(evt);
 		});
 		this.applyCardView();
@@ -281,6 +338,20 @@ export default class DocCommentsPlugin extends Plugin {
 			id: "reject-all-suggestions",
 			name: "Reject all suggestions in this note",
 			editorCallback: (editor) => this.resolveAllSuggestions(editor, false),
+		});
+
+		// Diagnostic for "the note scrolls sideways / blank strip on the right"
+		// (mostly phones, where there are no developer tools): outline whatever
+		// sticks out past the note's right edge and name it.
+		this.addCommand({
+			id: "find-too-wide-elements",
+			name: "Find what makes the note wider than the screen",
+			checkCallback: (checking) => {
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (!view) return false;
+				if (!checking) this.findTooWide(view);
+				return true;
+			},
 		});
 
 		this.addCommand({
@@ -560,7 +631,40 @@ export default class DocCommentsPlugin extends Plugin {
 		});
 	}
 
-	/** Compact cards: a body class the stylesheet keys off (no re-render). */
+	/** Outline (for 15s) the elements in the note that stick out past its right
+	 *  edge, and list the widest few in a notice. */
+	private findTooWide(view: MarkdownView): void {
+		const root = view.contentEl;
+		const edge = root.getBoundingClientRect().right;
+		const wide: Array<{ el: HTMLElement; over: number }> = [];
+		root.querySelectorAll<HTMLElement>("*").forEach((el) => {
+			const rect = el.getBoundingClientRect();
+			if (rect.width === 0) return;
+			const over = Math.round(rect.right - edge);
+			if (over > 1) wide.push({ el, over });
+		});
+		if (wide.length === 0) {
+			new Notice("Nothing in this note is wider than the screen.");
+			return;
+		}
+		// Outermost offenders first: an element whose parent also sticks out is
+		// usually just carried along by it.
+		const roots = wide.filter(({ el }) => !wide.some((w) => w.el !== el && w.el.contains(el) && w.el !== root));
+		const describe = (el: HTMLElement): string => {
+			const cls = Array.from(el.classList).slice(0, 3).join(".");
+			const text = (el.textContent ?? "").trim().slice(0, 30);
+			return `<${el.tagName.toLowerCase()}${cls ? "." + cls : ""}>${text ? ` "${text}"` : ""}`;
+		};
+		const list = roots
+			.sort((a, b) => b.over - a.over)
+			.slice(0, 5)
+			.map(({ el, over }) => `• ${describe(el)} +${over}px`)
+			.join("\n");
+		for (const { el } of roots) el.addClass("dc-too-wide");
+		window.setTimeout(() => roots.forEach(({ el }) => el.removeClass("dc-too-wide")), 15000);
+		new Notice(`Wider than the screen (outlined in red for 15s):\n${list}`, 15000);
+	}
+
 	/** See insideLineStartMarkup (format/line-start.ts). Only writes when needed. */
 	private async fixLineStartMarkers(file: TFile): Promise<void> {
 		const text = await this.app.vault.cachedRead(file);
@@ -576,6 +680,10 @@ export default class DocCommentsPlugin extends Plugin {
 		const indicator = this.settings.cardIndicator;
 		for (const mode of ["line", "tint", "dot", "none"])
 			activeDocument.body.toggleClass(`dc-indicator-${mode}`, mode === indicator);
+		activeDocument.body.setCssProps({
+			"--dc-indicator-width": `${this.settings.cardIndicatorWidth}px`,
+			"--dc-card-tint": `${this.settings.cardTintStrength}%`,
+		});
 		this.cardViewStatus?.setText(compact ? "💬 Compact" : view === "pdf" ? "💬 PDF style" : "💬 Default");
 		// Cards are laid out differently per view; re-run layout everywhere.
 		this.refreshEditors();

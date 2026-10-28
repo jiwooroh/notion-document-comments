@@ -11,6 +11,11 @@ export const MARGIN_WIDTH_PX = 320;
  *  full 320px column stops fitting. */
 const NARROW_SLACK_PX = 96;
 
+/** iPad: below this pane width the comment column stops being reserved. The
+ *  270px tablet column plus room for ~420px of text — about a half-screen
+ *  Split View on most iPads. */
+const TABLET_NARROW_PX = 690;
+
 /** Reads Obsidian's `--file-line-width` (the readable line width) off `el`, in
  *  pixels. Themes/settings can set it as a bare number (legacy, already px), or
  *  with `px`/`rem` units — handle all three. Falls back to a sane default (the
@@ -33,10 +38,10 @@ const readLineWidthPx = (el: HTMLElement): number => {
  *  of breathing room. Below this, the margin stops being reserved and its
  *  cards hide until hovered. */
 export const isNarrowForMargin = (container: HTMLElement): boolean => {
-	// iPad always keeps the column: the text narrows to make room instead of
-	// cards floating over it and hiding until a highlight is tapped (there's no
-	// hover on a touch screen to reveal them).
-	if (Platform.isTablet) return false;
+	// iPad keeps the column — the text narrows to make room — until the pane is
+	// too small for both (Split View, Slide Over, a narrow split). Then cards
+	// hide like on a narrow desktop window and show when a highlight is tapped.
+	if (Platform.isTablet) return container.clientWidth < TABLET_NARROW_PX;
 	// Reading the line width forces a style pass; only redo it when the
 	// container's width (or the theme/CSS, see resetNarrowCache) changed.
 	const width = container.clientWidth;
