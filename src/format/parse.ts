@@ -97,9 +97,14 @@ export const parseComments = (doc: string): ParsedComment[] => {
 /** Each anchored insertion with the anchored deletion it replaces. */
 const replacementPairs = (comments: ParsedComment[]): Array<[ParsedComment, ParsedComment]> => {
 	const pairs: Array<[ParsedComment, ParsedComment]> = [];
+	// Runs on every keystroke: look deletions up by id, not by scanning the list.
+	let deletions: Map<string, ParsedComment> | null = null;
 	for (const ins of comments) {
 		if (ins.suggest !== "insert" || !ins.replaces || ins.text === undefined) continue;
-		const del = comments.find((c) => c.id === ins.replaces && c.suggest === "delete" && c.text !== undefined);
+		deletions ??= new Map(
+			comments.filter((c) => c.suggest === "delete" && c.text !== undefined).map((c) => [c.id, c]),
+		);
+		const del = deletions.get(ins.replaces);
 		if (del) pairs.push([ins, del]);
 	}
 	return pairs;

@@ -72,6 +72,8 @@ export type CardView = {
 export class Card {
 	readonly el: HTMLElement;
 	private comment: ParsedComment;
+	private signatureOf: ParsedComment | null = null;
+	private signatureCache = "";
 	private open = false;
 	/** The user's explicit fold choice for a long thread: "auto" folds only when
 	 *  the card is crowded (or too tall for the column); "folded" / "unfolded"
@@ -153,8 +155,13 @@ export class Card {
 		return this.comment.id;
 	}
 
+	/** Cached: the margin compares it for every card on every keystroke. */
 	get signature(): string {
-		return cardSignature(this.comment);
+		if (this.signatureOf !== this.comment) {
+			this.signatureCache = cardSignature(this.comment);
+			this.signatureOf = this.comment;
+		}
+		return this.signatureCache;
 	}
 
 	update(comment: ParsedComment): void {
