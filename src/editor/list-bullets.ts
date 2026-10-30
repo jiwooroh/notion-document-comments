@@ -22,6 +22,9 @@ export const levelBelowTask = (doc: Text, lineNo: number, tabSize: number): numb
 	const own = LIST_ITEM.exec(doc.line(lineNo).text);
 	if (!own) return 0;
 	let width = indentWidth(own[1] ?? "", tabSize);
+	// A top-level item has no parent, so no task above it (and scanning a long
+	// flat list back up to MAX_LOOKBACK lines on every keystroke adds up).
+	if (width === 0) return 0;
 	let levels = 0;
 	const stop = Math.max(1, lineNo - MAX_LOOKBACK);
 	for (let n = lineNo - 1; n >= stop; n--) {
