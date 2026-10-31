@@ -1,3 +1,4 @@
+import { syncHighlightStyles } from "./highlight-styles";
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { anchorRange } from "../format/parse";
@@ -216,6 +217,7 @@ const setViewRanges = (view: EditorView, ranges: TableRanges, remove = false): v
 	setHighlight(scope, RESOLVED_HIGHLIGHT, all("resolved"));
 	setHighlight(scope, INSERT_HIGHLIGHT, all("insert"));
 	setHighlight(scope, DELETE_HIGHLIGHT, all("delete"));
+	syncHighlightStyles(doc);
 };
 
 const setHighlight = (scope: BrowserWindow, name: string, ranges: Range[]): void => {

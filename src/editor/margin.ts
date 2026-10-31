@@ -233,12 +233,22 @@ class MarginView implements PluginValue {
 		const draft = this.view.state.field(draftField, false) ?? null;
 		this.syncDraftEl(draft);
 
+		// With no cards or draft there is nothing to position. Clear stale badges
+		// first, then avoid geometry reads on viewport-only updates (scroll).
+		if (!draft && this.cards.size === 0) {
+			if (this.foldBadges.size > 0) this.syncFoldBadges(new Map(), 0);
+			return;
+		}
+
 		// Too narrow for the text column and the margin to coexist — stop reserving
 		// space for the column (the text reclaims it) and let cards hide until their
 		// anchor is hovered instead of floating persistently. `dc-narrow` is plain
 		// state (like dc-offscreen), not routed through editorAttributes, since it's
 		// geometry-derived and only this measure pass needs to know about it.
-		this.view.dom.toggleClass("dc-narrow", isNarrowForMargin(this.view.scrollDOM));
+		const narrow = isNarrowForMargin(this.view.scrollDOM);
+		if (this.view.dom.hasClass("dc-narrow") !== narrow) {
+			this.view.dom.toggleClass("dc-narrow", narrow);
+		}
 
 		// Top of the scrolled content, in viewport coordinates: anchor rects minus
 		// this give positions inside the scroller that stay put as it scrolls.

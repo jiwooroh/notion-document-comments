@@ -1,3 +1,4 @@
+import { syncHighlightStyles } from "./highlight-styles";
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { anchorRange, anchorStyle } from "../format/parse";
@@ -192,4 +193,5 @@ const setViewRanges = (view: EditorView, ranges: Map<string, Range[]>, remove = 
 	}
 	for (const name of previous) if (!merged.has(name)) scope.CSS.highlights.delete(name);
 	for (const [name, list] of merged) scope.CSS.highlights.set(name, new scope.Highlight(...list));
+	syncHighlightStyles(doc);
 };
