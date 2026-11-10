@@ -3,7 +3,6 @@ import { EditorView } from "@codemirror/view";
 import { commentField } from "./state";
 import { commentConfig } from "./config";
 import { hasMarginAnchor } from "../format/parse";
-import { shownComments } from "../format/availability";
 
 // Defined ABOVE editorLayoutField: StateField.define evaluates `provide` EAGERLY
 // at module load, and the provider arrow it builds references this helper. A
@@ -28,7 +27,7 @@ const editorLayoutClasses = (state: EditorState): string => {
 	const hasColumn =
 		showInline &&
 		!!fv &&
-		shownComments(fv.comments).some((c) => hasMarginAnchor(c) && (cfg.showResolved() || c.status !== "resolved"));
+		fv.comments.some((c) => hasMarginAnchor(c) && (cfg.showResolved() || c.status !== "resolved"));
 
 	const classes: string[] = [];
 	if (hasColumn) classes.push("dc-has");

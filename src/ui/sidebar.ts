@@ -3,7 +3,6 @@ import { EditorView } from "@codemirror/view";
 import { Result } from "better-result";
 import { ParsedComment } from "../format/types";
 import { anchorRange, hasCommentCard, parseComments, withoutReplacedDeletions } from "../format/parse";
-import { commentsEnabled, shownComments } from "../format/availability";
 import { Card, CardCallbacks } from "./card";
 import { cardSignature } from "./card-format";
 import {
@@ -250,7 +249,7 @@ export class CommentsSidebarView extends ItemView {
 			return;
 		}
 
-		const every = withoutReplacedDeletions(shownComments(parseComments(data))).filter(hasCommentCard);
+		const every = withoutReplacedDeletions(parseComments(data)).filter(hasCommentCard);
 		const byStatus = (list: ParsedComment[]) =>
 			this.filter === "open"
 				? list.filter((c) => c.status !== "resolved")
@@ -275,11 +274,7 @@ export class CommentsSidebarView extends ItemView {
 
 	private emptyMessage(total: number, shown: number): string | null {
 		if (shown > 0) return null;
-		if (total === 0) {
-			return commentsEnabled()
-				? "No comments in this note yet."
-				: "Comments are turned off in settings. Suggestions still show here.";
-		}
+		if (total === 0) return "No comments in this note yet.";
 		if (this.colorFilter.size > 0) return "No comments in the selected colors.";
 		if (this.filter === "open") return "No open comments.";
 		if (this.filter === "resolved") return "No resolved comments.";

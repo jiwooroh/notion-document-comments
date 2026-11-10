@@ -1,7 +1,6 @@
 import {
 	Annotation,
 	EditorSelection,
-	StateEffect,
 	EditorState,
 	findClusterBreak,
 	Range,
@@ -14,16 +13,11 @@ import { ParsedComment } from "../format/types";
 import { anchorRange, anchorStyle, parseComments, replacedBy } from "../format/parse";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { commentPreview } from "../format/preview";
-import { commentsEnabled } from "../format/availability";
 
 /** Marks a transaction the plugin itself built around the user's typing (the
  *  Suggesting-mode wrap of composed text). It carries an input user event so
  *  it joins the typing's undo step, but it may move markers. */
 export const pluginEdit = Annotation.define<boolean>();
-
-/** Rebuild the comment decorations after a plugin-wide setting they depend on
- *  changed (the comment feature turned on or off). */
-export const refreshComments = StateEffect.define<null>();
 
 export type CommentFieldValue = {
 	comments: ParsedComment[];
@@ -162,8 +156,7 @@ export const commentField = StateField.define<CommentFieldValue>({
 		// A no-space marker is revealed when the selection reaches it, then hidden
 		// again after the selection leaves. Selection-only transactions therefore
 		// have to rebuild the marker decorations too.
-		const refresh = tr.effects.some((e) => e.is(refreshComments));
-		return tr.docChanged || tr.selection !== undefined || refresh ? compute(tr.state) : value;
+		return tr.docChanged || tr.selection !== undefined ? compute(tr.state) : value;
 	},
 	provide: (f) => [
 		EditorView.decorations.from(f, (v) => v.decorations),
@@ -283,9 +276,7 @@ const compute = (state: EditorState): CommentFieldValue => {
 		// A code comment highlights the resolved target lines inside the block, not
 		// the whole between-markers range (which would include the fences).
 		const r = code ? resolveCodeAnchor(text, c) : anchorRange(c);
-		// With the comment feature off, a comment keeps its hidden markers but
-		// loses its highlight and hover preview; suggestions still show.
-		if (r && r.to > r.from && (c.suggest || commentsEnabled())) {
+		if (r && r.to > r.from) {
 			// A mark decoration paints over live source text, so it shows in Source
 			// mode and (via the Reading-view post-processor) in Reading view. It does
 			// NOT show where Obsidian replaces the source with a widget — most notably

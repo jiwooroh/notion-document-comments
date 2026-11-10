@@ -14,8 +14,7 @@ import {
 } from "obsidian";
 import { Result } from "better-result";
 import { EditorView } from "@codemirror/view";
-import { commentField, refreshComments } from "./editor/state";
-import { setCommentsEnabled } from "./format/availability";
+import { commentField } from "./editor/state";
 import { marginPlugin } from "./editor/margin";
 import { commentConfig } from "./editor/config";
 import { editorLayoutField } from "./editor/layout";
@@ -71,7 +70,6 @@ export default class DocCommentsPlugin extends Plugin {
 		applyAnnotationStyle(this.settings.annotationStyle);
 		applyColorScheme(this.settings.colorScheme);
 		this.applyAuthorVisibility();
-		setCommentsEnabled(this.settings.commentsEnabled);
 		this.applyCardView();
 		// Vault images resolve only once the vault is indexed.
 		this.app.workspace.onLayoutReady(() => this.applyProfile());
@@ -205,11 +203,7 @@ export default class DocCommentsPlugin extends Plugin {
 		this.addCommand({
 			id: "add-comment",
 			name: "Add comment",
-			editorCheckCallback: (checking, editor) => {
-				if (!this.settings.commentsEnabled) return false;
-				if (!checking) this.startAddComment(editor);
-				return true;
-			},
+			editorCallback: (editor) => this.startAddComment(editor),
 		});
 
 		this.addCommand({
@@ -371,7 +365,7 @@ export default class DocCommentsPlugin extends Plugin {
 			name: "Add comment in reading view",
 			checkCallback: (checking) => {
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (!view || view.getMode() !== "preview" || !this.settings.commentsEnabled) return false;
+				if (!view || view.getMode() !== "preview") return false;
 				if (!checking) this.startAddCommentReading(view);
 				return true;
 			},
@@ -402,7 +396,6 @@ export default class DocCommentsPlugin extends Plugin {
 	}
 
 	public startAddComment(editor: Editor): void {
-		if (!this.commentsAvailable()) return;
 		const view = editorView(editor);
 		if (!view) {
 			new Notice("Couldn't access the editor.");
@@ -450,7 +443,6 @@ export default class DocCommentsPlugin extends Plugin {
 	/** Reading view has no editor surface, so map the rendered selection back to
 	 *  source offsets (best-effort) and prompt for the comment text. */
 	public startAddCommentReading(view: MarkdownView): void {
-		if (!this.commentsAvailable()) return;
 		const selection = activeWindow.getSelection();
 		const selected = selection?.toString() ?? "";
 		if (!selection || selection.rangeCount === 0 || !selected.trim()) {
@@ -558,25 +550,6 @@ export default class DocCommentsPlugin extends Plugin {
 	/** Hide or show author names: a body class for the cards (see styles.css)
 	 *  and a flag for hover previews, which open Reading views re-render to
 	 *  pick up (editors rebuild theirs on the next edit). */
-	/** Callers outside the command palette (another plugin's toolbar) reach the
-	 *  add-comment entry points directly, so they check the setting too. */
-	private commentsAvailable(): boolean {
-		if (this.settings.commentsEnabled) return true;
-		new Notice("Comments are turned off. Turn them on in this plugin's settings.");
-		return false;
-	}
-
-	/** Turn the comment feature on or off everywhere: editors rebuild their
-	 *  highlights, Reading views re-render, the sidebar refreshes. */
-	applyCommentsEnabled(): void {
-		setCommentsEnabled(this.settings.commentsEnabled);
-		this.refreshEditors();
-		this.app.workspace.getLeavesOfType("markdown").forEach((leaf) => {
-			if (leaf.view instanceof MarkdownView && leaf.view.getMode() === "preview")
-				leaf.view.previewMode.rerender(true);
-		});
-	}
-
 	applyAuthorVisibility(): void {
 		activeDocument.body.toggleClass("dc-hide-author", !this.settings.showAuthor);
 		setPreviewShowsAuthor(this.settings.showAuthor);
@@ -740,7 +713,7 @@ export default class DocCommentsPlugin extends Plugin {
 	/** Force open editors + reading views (+ the sidebar) to re-evaluate live config. */
 	refreshEditors(): void {
 		this.app.workspace.getLeavesOfType("markdown").forEach((leaf: WorkspaceLeaf) => {
-			editorViewFromLeaf(leaf)?.dispatch({ effects: refreshComments.of(null) });
+			editorViewFromLeaf(leaf)?.dispatch({});
 		});
 		this.scheduleReadingRefresh();
 		this.sidebarView()?.requestRefresh();

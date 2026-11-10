@@ -1,7 +1,6 @@
 import { App, Component, MarkdownPostProcessorContext, MarkdownRenderer } from "obsidian";
 import { ParsedComment, TextRange } from "../format/types";
 import { anchorRange, anchorStyle, parseComments } from "../format/parse";
-import { shownComments } from "../format/availability";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { wrapAnchor, wrapFirstMatch } from "./highlight";
 import { nudgeMarginNotes } from "./print-stack";
@@ -48,7 +47,7 @@ export const printNotesPostProcessor = async (
 
 	// Number comments in document order. An empty comment (a bare highlight) has
 	// nothing to print, so it gets a highlight but no number.
-	const ordered = shownComments(parseComments(text))
+	const ordered = parseComments(text)
 		.map((c) => ({ c, range: commentRange(text, c) }))
 		.filter((x): x is { c: ParsedComment; range: TextRange } => x.range !== null)
 		.filter(({ c }) => deps.showResolved() || c.status !== "resolved")

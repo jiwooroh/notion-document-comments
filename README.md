@@ -367,7 +367,6 @@ The plugin uses `me` when the Author setting is empty. Your profile photo and **
 
 | Setting | What it does | Default |
 |---|---|---|
-| Comments | Turn the comment feature on or off. Off: no new comments, existing ones hidden (kept in your notes); suggestions still work | On |
 | Author | Name added to your new comments | `me` |
 | Editing mode | Editing (change the text) or Suggesting (edits become suggestions); also in the status bar | Editing |
 | Profile photo | Small round photo next to your name on your own comments (vault image or link) | None |

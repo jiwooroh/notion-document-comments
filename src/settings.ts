@@ -22,9 +22,6 @@ import {
 } from "./ui/highlight-colors";
 
 export type DocCommentsSettings = {
-	/** The comment feature: off hides every comment (they stay in the notes)
-	 *  and stops new ones from being added. Suggestions keep working. */
-	commentsEnabled: boolean;
 	/** Author handle attached to comments you create. Empty falls back to "me". */
 	author: string;
 	/** Master toggle for the margin column. */
@@ -70,7 +67,6 @@ export type DocCommentsSettings = {
 };
 
 export const DEFAULT_SETTINGS: DocCommentsSettings = {
-	commentsEnabled: true,
 	author: "",
 	showComments: true,
 	showResolved: false,
@@ -124,13 +120,6 @@ const SETTING_META: ReadonlyArray<{
 	aliases: string[];
 	control: TextControl | ToggleControl | DropdownControl | SliderControl;
 }> = [
-	{
-		key: "commentsEnabled",
-		name: "Comments",
-		desc: "Turn the comment feature on or off. When off, you can't add comments and existing comments are hidden everywhere (they stay in your notes and come back when you turn this on). Suggestions in Suggesting mode still work.",
-		aliases: ["enable comments", "disable comments", "comment feature", "turn off comments"],
-		control: { type: "toggle" },
-	},
 	{
 		key: "author",
 		name: "Author",
@@ -506,8 +495,6 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 	 *  Shared by both the declarative and imperative settings paths. */
 	private async applySetting(key: StringSettingKey, value: unknown): Promise<void> {
 		if (key === "author") this.plugin.settings.author = String(value);
-		else if (key === "commentsEnabled") this.plugin.settings.commentsEnabled = Boolean(value);
-		else if (key === "editMode") this.plugin.settings.editMode = String(value);
 		else if (key === "showComments") this.plugin.settings.showComments = Boolean(value);
 		else if (key === "showResolved") this.plugin.settings.showResolved = Boolean(value);
 		else if (key === "allowEmptyComments") this.plugin.settings.allowEmptyComments = Boolean(value);
@@ -536,7 +523,6 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		if (["cardView", "cardIndicator", "cardIndicatorWidth", "cardTintStrength"].includes(key))
 			this.plugin.applyCardView();
 		if (key === "editMode") this.plugin.applyEditMode();
-		if (key === "commentsEnabled") this.plugin.applyCommentsEnabled();
 		// Your name decides which comments are "yours" (profile photo, hidden own
 		// name), so a new name re-applies the profile right away too.
 		if (key === "showMyProfile" || key === "author") this.plugin.applyProfile();

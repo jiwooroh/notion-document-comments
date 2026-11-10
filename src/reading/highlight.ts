@@ -1,7 +1,6 @@
 import type { MarkdownPostProcessorContext } from "obsidian";
 import { ParsedComment } from "../format/types";
 import { anchorRange, anchorStyle, fencedRanges, isHighlight, parseComments, replacedBy } from "../format/parse";
-import { shownComments } from "../format/availability";
 import { isCodeComment, resolveCodeAnchor } from "../format/code-anchor";
 import { commentPreview } from "../format/preview";
 
@@ -67,7 +66,7 @@ const commentsFor = (text: string): ParsedComment[] => {
 		cacheKey = text;
 		cacheVal = parseComments(text);
 	}
-	return shownComments(cacheVal);
+	return cacheVal;
 };
 
 /**

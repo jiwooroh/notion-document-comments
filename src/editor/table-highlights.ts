@@ -1,7 +1,6 @@
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { anchorRange } from "../format/parse";
-import { shownComments } from "../format/availability";
 import type { ParsedComment, SuggestionKind } from "../format/types";
 import { commentConfig, type CommentConfig } from "./config";
 import { getComments } from "./state";
@@ -131,7 +130,7 @@ class TableHighlights {
 		}
 
 		const doc = this.view.state.doc.toString();
-		const comments = shownComments(getComments(this.view.state)).filter(
+		const comments = getComments(this.view.state).filter(
 			(comment) => cfg.showResolved() || comment.status !== "resolved",
 		);
 		const targets = tableHighlightTargets(doc, comments);

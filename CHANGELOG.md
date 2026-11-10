@@ -5,10 +5,6 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
-- **Comments on/off:** a new **Comments** setting turns the comment feature off entirely. While it's off you can't add comments, and existing comments are hidden everywhere (highlights, cards, sidebar, Reading view, PDF export); they stay in your notes and come back when you turn it on. Suggestions in Suggesting mode keep working.
-- Fixed **Editing mode** in settings not saving the mode you picked (the status bar, note button, and command worked).
-- Typing in notes with many comments or suggestions does a little less work per keystroke.
-
 ## 0.3.0
 
 - **Suggesting mode** (like Notion's "Suggest edits" and Google Docs' "Suggesting"): switch a note between **Editing** and **Suggesting**. While suggesting, your edits are proposed instead of made:
