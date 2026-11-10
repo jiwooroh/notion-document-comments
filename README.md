@@ -368,6 +368,7 @@ The plugin uses `me` when the Author setting is empty. Your profile photo and **
 | Setting | What it does | Default |
 |---|---|---|
 | Author | Name added to your new comments | `me` |
+| Suggestions | Turn the suggestion features (Suggesting mode, its switches and commands) on or off. Existing suggestions still show and can be resolved | On |
 | Editing mode | Editing (change the text) or Suggesting (edits become suggestions); also in the status bar | Editing |
 | Profile photo | Small round photo next to your name on your own comments (vault image or link) | None |
 | Show comments | Show the comment cards and highlights | On |
