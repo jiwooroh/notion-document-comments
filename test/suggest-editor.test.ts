@@ -131,3 +131,29 @@ describe("undo in suggesting mode", () => {
 		view.destroy();
 	});
 });
+
+describe("comments turned off", () => {
+	test("comments lose their highlight; suggestions keep theirs", async () => {
+		const { setCommentsEnabled } = await import("../src/format/availability");
+		const { commentField } = await import("../src/editor/state");
+		const doc =
+			"A <!--c:aa1-->comment<!--/c:aa1--> and <!--c:bb2-->added<!--/c:bb2--> text.\n" +
+			"<!--co:aa1 by:me status:open\nme: hi\n-->\n<!--co:bb2 by:me status:open suggest:insert\n-->";
+		const marks = (state: EditorState) => {
+			const out: string[] = [];
+			state.field(commentField).decorations.between(0, state.doc.length, (_f, _t, d) => {
+				const cid = (d.spec as { attributes?: Record<string, string> }).attributes?.["data-cid"];
+				if (cid) out.push(cid);
+			});
+			return out;
+		};
+		try {
+			setCommentsEnabled(false);
+			expect(marks(make(doc, 0, false))).toEqual(["bb2"]);
+			setCommentsEnabled(true);
+			expect(marks(make(doc, 0, false)).sort()).toEqual(["aa1", "bb2"]);
+		} finally {
+			setCommentsEnabled(true);
+		}
+	});
+});

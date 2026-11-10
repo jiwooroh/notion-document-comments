@@ -1,6 +1,7 @@
 import { ViewPlugin, ViewUpdate } from "@codemirror/view";
 import type { EditorView } from "@codemirror/view";
 import { anchorRange, anchorStyle } from "../format/parse";
+import { commentsEnabled } from "../format/availability";
 import type { ParsedComment } from "../format/types";
 import { isCodeComment } from "../format/code-anchor";
 import { findRenderedMatch } from "../reading/highlight";
@@ -117,6 +118,7 @@ class HtmlHighlights {
 			const doc = this.view.state.doc;
 			for (const c of this.candidates) {
 				if (!cfg.showResolved() && c.status === "resolved") continue;
+				if (!c.suggest && !commentsEnabled()) continue;
 				const range = anchorRange(c);
 				let line: HTMLElement | null;
 				let source: string;
