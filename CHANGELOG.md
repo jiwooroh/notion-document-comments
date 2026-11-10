@@ -5,6 +5,10 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+- **Suggestions on/off:** a new **Suggestions** setting turns the suggestion features off. While it's off, Suggesting mode is unavailable (typing always edits directly), and its status bar item, ribbon and note-header buttons, and commands are hidden. Suggestions already in your notes still show and can be accepted or rejected from their cards.
+- Fixed **Editing mode** in settings not saving the mode you picked (the status bar, note button, and command worked).
+- Typing in notes with many comments or suggestions does a little less work per keystroke.
+
 ## 0.3.0
 
 - **Suggesting mode** (like Notion's "Suggest edits" and Google Docs' "Suggesting"): switch a note between **Editing** and **Suggesting**. While suggesting, your edits are proposed instead of made:

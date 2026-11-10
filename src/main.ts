@@ -99,7 +99,7 @@ export default class DocCommentsPlugin extends Plugin {
 				sidebarOpen: () => this.sidebarOpen,
 				openInSidebar: (id) => void this.revealComment(id),
 				isMobile: () => Platform.isPhone,
-				suggesting: () => this.settings.editMode === "suggest",
+				suggesting: () => this.isSuggesting(),
 			}),
 			// Reflects dc-has / dc-highlights / dc-hide-resolved onto .cm-editor so the
 			// stylesheet caps the text column without a :has() selector.
@@ -325,19 +325,31 @@ export default class DocCommentsPlugin extends Plugin {
 		this.addCommand({
 			id: "toggle-suggesting",
 			name: "Toggle suggesting mode",
-			callback: () => void this.toggleEditMode(),
+			checkCallback: (checking) => {
+				if (!this.settings.suggestionsEnabled) return false;
+				if (!checking) void this.toggleEditMode();
+				return true;
+			},
 		});
 
 		this.addCommand({
 			id: "accept-all-suggestions",
 			name: "Accept all suggestions in this note",
-			editorCallback: (editor) => this.resolveAllSuggestions(editor, true),
+			editorCheckCallback: (checking, editor) => {
+				if (!this.settings.suggestionsEnabled) return false;
+				if (!checking) this.resolveAllSuggestions(editor, true);
+				return true;
+			},
 		});
 
 		this.addCommand({
 			id: "reject-all-suggestions",
 			name: "Reject all suggestions in this note",
-			editorCallback: (editor) => this.resolveAllSuggestions(editor, false),
+			editorCheckCallback: (checking, editor) => {
+				if (!this.settings.suggestionsEnabled) return false;
+				if (!checking) this.resolveAllSuggestions(editor, false);
+				return true;
+			},
 		});
 
 		// Diagnostic for "the note scrolls sideways / blank strip on the right"
@@ -578,19 +590,30 @@ export default class DocCommentsPlugin extends Plugin {
 		new Notice(mode === "suggest" ? "Suggesting: your edits become suggestions" : "Editing");
 	}
 
+	/** Suggesting mode is on only while the suggestion features are enabled:
+	 *  turning them off leaves typing as plain editing even if the mode was
+	 *  left on Suggesting. */
+	private isSuggesting(): boolean {
+		return this.settings.suggestionsEnabled && this.settings.editMode === "suggest";
+	}
+
 	private toggleEditMode(): Promise<void> {
 		return this.setEditMode(this.settings.editMode === "suggest" ? "edit" : "suggest");
 	}
 
 	/** Status bar label, ribbon and note-header buttons, and a body class. */
 	applyEditMode(): void {
-		const suggesting = this.settings.editMode === "suggest";
+		const available = this.settings.suggestionsEnabled;
+		const suggesting = this.isSuggesting();
 		activeDocument.body.toggleClass("dc-suggesting", suggesting);
 		this.editModeStatus?.setText(suggesting ? "💡 Suggesting" : "✏️ Editing");
 		this.editModeStatus?.toggleClass("is-suggesting", suggesting);
+		// With the suggestion features off, the mode switches aren't offered.
+		this.editModeStatus?.toggle(available);
 		const buttons = [this.editModeRibbon, ...this.editModeActions.values()];
 		for (const el of buttons) {
 			if (!el) continue;
+			el.toggle(available);
 			setIcon(el, suggesting ? "lightbulb" : "pencil");
 			el.setAttribute(
 				"aria-label",

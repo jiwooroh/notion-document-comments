@@ -64,6 +64,9 @@ export type DocCommentsSettings = {
 	/** "edit" changes the text directly; "suggest" turns your edits into
 	 *  suggestions others can accept or reject (see editor/suggest.ts). */
 	editMode: string;
+	/** The suggestion features: off removes Suggesting mode, its switches and
+	 *  commands. Suggestions already in notes still show and can be resolved. */
+	suggestionsEnabled: boolean;
 };
 
 export const DEFAULT_SETTINGS: DocCommentsSettings = {
@@ -86,6 +89,7 @@ export const DEFAULT_SETTINGS: DocCommentsSettings = {
 	highlightColorsDark: {},
 	annotationStyle: DEFAULT_ANNOTATION_STYLE,
 	editMode: "edit",
+	suggestionsEnabled: true,
 };
 
 type DocCommentsSettingKey = keyof DocCommentsSettings;
@@ -126,6 +130,13 @@ const SETTING_META: ReadonlyArray<{
 		desc: 'Name attached to comments you create. Defaults to "me".',
 		aliases: ["comment author", "display name"],
 		control: { type: "text", placeholder: "Me" },
+	},
+	{
+		key: "suggestionsEnabled",
+		name: "Suggestions",
+		desc: "Turn the suggestion features on or off. When off, Suggesting mode, its switches (status bar, ribbon, note header) and its commands are gone, and typing always edits directly. Suggestions already in your notes still show, and you can accept or reject them from their cards.",
+		aliases: ["suggest edits", "suggesting mode", "track changes", "disable suggestions"],
+		control: { type: "toggle" },
 	},
 	{
 		key: "editMode",
@@ -495,6 +506,8 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 	 *  Shared by both the declarative and imperative settings paths. */
 	private async applySetting(key: StringSettingKey, value: unknown): Promise<void> {
 		if (key === "author") this.plugin.settings.author = String(value);
+		else if (key === "suggestionsEnabled") this.plugin.settings.suggestionsEnabled = Boolean(value);
+		else if (key === "editMode") this.plugin.settings.editMode = String(value);
 		else if (key === "showComments") this.plugin.settings.showComments = Boolean(value);
 		else if (key === "showResolved") this.plugin.settings.showResolved = Boolean(value);
 		else if (key === "allowEmptyComments") this.plugin.settings.allowEmptyComments = Boolean(value);
@@ -522,7 +535,7 @@ export class DocCommentsSettingTab extends PluginSettingTab {
 		if (key === "showAuthor") this.plugin.applyAuthorVisibility();
 		if (["cardView", "cardIndicator", "cardIndicatorWidth", "cardTintStrength"].includes(key))
 			this.plugin.applyCardView();
-		if (key === "editMode") this.plugin.applyEditMode();
+		if (key === "editMode" || key === "suggestionsEnabled") this.plugin.applyEditMode();
 		// Your name decides which comments are "yours" (profile photo, hidden own
 		// name), so a new name re-applies the profile right away too.
 		if (key === "showMyProfile" || key === "author") this.plugin.applyProfile();
