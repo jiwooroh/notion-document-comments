@@ -134,7 +134,7 @@ const SETTING_META: ReadonlyArray<{
 	{
 		key: "suggestionsEnabled",
 		name: "Suggestions",
-		desc: "Turn the suggestion features on or off. When off, Suggesting mode, its switches (status bar, ribbon, note header) and its commands are gone, and typing always edits directly. Suggestions already in your notes still show, and you can accept or reject them from their cards.",
+		desc: "Turn the suggestion features on or off. When off, Suggesting mode, its switches (status bar, ribbon) and its commands are gone, and typing always edits directly. Suggestions already in your notes still show, and you can accept or reject them from their cards.",
 		aliases: ["suggest edits", "suggesting mode", "track changes", "disable suggestions"],
 		control: { type: "toggle" },
 	},
