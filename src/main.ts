@@ -35,7 +35,7 @@ import { htmlHighlightPlugin } from "./editor/html-highlights";
 import { listBelowTaskPlugin } from "./editor/list-bullets";
 import { activeAnchorField } from "./editor/active";
 import { computeLineStartMarkupFixes } from "./format/line-start";
-import { computeBodyBlankLineFixes } from "./format/body-lines";
+import { computeBodyLayoutFixes } from "./format/body-lines";
 import { applyCommentEdit } from "./editor/routing";
 import { resetNarrowCache } from "./util/narrow";
 import {
@@ -179,14 +179,14 @@ export default class DocCommentsPlugin extends Plugin {
 				if (views.some((view) => view.getMode() === "preview")) this.scheduleReadingRefresh();
 				// Another tool can write a comment with empty lines into a note that's
 				// already open (file-open below doesn't fire again).
-				if (views.length > 0 && file instanceof TFile) void this.fixBodyBlankLines(file);
+				if (views.length > 0 && file instanceof TFile) void this.fixBodyLayout(file);
 			}),
 		);
 		// Comments made before 0.2.14 could start a line with their marker, which
 		// stops Markdown from formatting that line (literal `**` in Reading view
 		// and PDF). Move those markers inside the markup when the note is opened,
-		// and drop empty lines inside comment bodies, which cut the comment off
-		// and show the rest of it as note text.
+		// and fix comment bodies another tool wrote in a way that shows part of
+		// them as note text (see format/body-lines.ts).
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
 				if (file?.extension === "md") void this.fixLineStartMarkers(file);
@@ -667,23 +667,20 @@ export default class DocCommentsPlugin extends Plugin {
 		new Notice(`Wider than the screen (outlined in red for 15s):\n${list}`, 15000);
 	}
 
-	/** See computeBodyBlankLineFixes (format/body-lines.ts). Only writes when needed. */
-	private async fixBodyBlankLines(file: TFile): Promise<void> {
+	/** See computeBodyLayoutFixes (format/body-lines.ts). Only writes when needed. */
+	private async fixBodyLayout(file: TFile): Promise<void> {
 		const text = await this.app.vault.cachedRead(file);
-		if (!text.includes("<!--co:") || computeBodyBlankLineFixes(text).length === 0) return;
-		await applyCommentEdit(this.app, file, (doc) => Result.ok(computeBodyBlankLineFixes(doc)));
+		if (!text.includes("<!--co:") || computeBodyLayoutFixes(text).length === 0) return;
+		await applyCommentEdit(this.app, file, (doc) => Result.ok(computeBodyLayoutFixes(doc)));
 	}
 
-	/** See insideLineStartMarkup (format/line-start.ts) and
-	 *  computeBodyBlankLineFixes (format/body-lines.ts). Only writes when needed. */
+	/** See insideLineStartMarkup (format/line-start.ts) and fixBodyLayout. Only
+	 *  writes when needed. */
 	private async fixLineStartMarkers(file: TFile): Promise<void> {
-		const fixes = (doc: string) =>
-			[...computeLineStartMarkupFixes(doc), ...computeBodyBlankLineFixes(doc)].sort(
-				(a, b) => a.from - b.from || a.to - b.to,
-			);
+		await this.fixBodyLayout(file);
 		const text = await this.app.vault.cachedRead(file);
-		if (!text.includes("<!--c") || fixes(text).length === 0) return;
-		await applyCommentEdit(this.app, file, (doc) => Result.ok(fixes(doc)));
+		if (!text.includes("<!--c:") || computeLineStartMarkupFixes(text).length === 0) return;
+		await applyCommentEdit(this.app, file, (doc) => Result.ok(computeLineStartMarkupFixes(doc)));
 	}
 
 	applyCardView(): void {
