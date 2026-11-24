@@ -172,15 +172,14 @@ export default class DocCommentsPlugin extends Plugin {
 		// tools modify files all the time).
 		this.registerEvent(
 			this.app.vault.on("modify", (file) => {
-				const shown = this.app.workspace
+				const views = this.app.workspace
 					.getLeavesOfType("markdown")
-					.some(
-						(leaf) =>
-							leaf.view instanceof MarkdownView &&
-							leaf.view.file === file &&
-							leaf.view.getMode() === "preview",
-					);
-				if (shown) this.scheduleReadingRefresh();
+					.map((leaf) => leaf.view)
+					.filter((view): view is MarkdownView => view instanceof MarkdownView && view.file === file);
+				if (views.some((view) => view.getMode() === "preview")) this.scheduleReadingRefresh();
+				// Another tool can write a comment with empty lines into a note that's
+				// already open (file-open below doesn't fire again).
+				if (views.length > 0 && file instanceof TFile) void this.fixBodyBlankLines(file);
 			}),
 		);
 		// Comments made before 0.2.14 could start a line with their marker, which
@@ -666,6 +665,13 @@ export default class DocCommentsPlugin extends Plugin {
 		for (const { el } of roots) el.addClass("dc-too-wide");
 		window.setTimeout(() => roots.forEach(({ el }) => el.removeClass("dc-too-wide")), 15000);
 		new Notice(`Wider than the screen (outlined in red for 15s):\n${list}`, 15000);
+	}
+
+	/** See computeBodyBlankLineFixes (format/body-lines.ts). Only writes when needed. */
+	private async fixBodyBlankLines(file: TFile): Promise<void> {
+		const text = await this.app.vault.cachedRead(file);
+		if (!text.includes("<!--co:") || computeBodyBlankLineFixes(text).length === 0) return;
+		await applyCommentEdit(this.app, file, (doc) => Result.ok(computeBodyBlankLineFixes(doc)));
 	}
 
 	/** See insideLineStartMarkup (format/line-start.ts) and
