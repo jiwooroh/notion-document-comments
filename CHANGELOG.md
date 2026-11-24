@@ -5,6 +5,8 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+## 0.3.1
+
 - Fixed part of a comment showing as note text in Reading view and PDF when its comment block had an empty line in it (for example a comment written by another tool). Empty lines inside comment blocks are removed when the note is opened; the comment itself doesn't change.
 
 ## 0.3.0
