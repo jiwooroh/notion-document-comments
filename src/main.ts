@@ -35,6 +35,7 @@ import { htmlHighlightPlugin } from "./editor/html-highlights";
 import { listBelowTaskPlugin } from "./editor/list-bullets";
 import { activeAnchorField } from "./editor/active";
 import { computeLineStartMarkupFixes } from "./format/line-start";
+import { computeBodyBlankLineFixes } from "./format/body-lines";
 import { applyCommentEdit } from "./editor/routing";
 import { resetNarrowCache } from "./util/narrow";
 import {
@@ -184,7 +185,9 @@ export default class DocCommentsPlugin extends Plugin {
 		);
 		// Comments made before 0.2.14 could start a line with their marker, which
 		// stops Markdown from formatting that line (literal `**` in Reading view
-		// and PDF). Move those markers inside the markup when the note is opened.
+		// and PDF). Move those markers inside the markup when the note is opened,
+		// and drop empty lines inside comment bodies, which cut the comment off
+		// and show the rest of it as note text.
 		this.registerEvent(
 			this.app.workspace.on("file-open", (file) => {
 				if (file?.extension === "md") void this.fixLineStartMarkers(file);
@@ -665,11 +668,16 @@ export default class DocCommentsPlugin extends Plugin {
 		new Notice(`Wider than the screen (outlined in red for 15s):\n${list}`, 15000);
 	}
 
-	/** See insideLineStartMarkup (format/line-start.ts). Only writes when needed. */
+	/** See insideLineStartMarkup (format/line-start.ts) and
+	 *  computeBodyBlankLineFixes (format/body-lines.ts). Only writes when needed. */
 	private async fixLineStartMarkers(file: TFile): Promise<void> {
+		const fixes = (doc: string) =>
+			[...computeLineStartMarkupFixes(doc), ...computeBodyBlankLineFixes(doc)].sort(
+				(a, b) => a.from - b.from || a.to - b.to,
+			);
 		const text = await this.app.vault.cachedRead(file);
-		if (!text.includes("<!--c:") || computeLineStartMarkupFixes(text).length === 0) return;
-		await applyCommentEdit(this.app, file, (doc) => Result.ok(computeLineStartMarkupFixes(doc)));
+		if (!text.includes("<!--c") || fixes(text).length === 0) return;
+		await applyCommentEdit(this.app, file, (doc) => Result.ok(fixes(doc)));
 	}
 
 	applyCardView(): void {
