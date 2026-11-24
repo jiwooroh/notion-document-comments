@@ -5,7 +5,7 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
-- Empty lines inside comment blocks are also removed when another tool rewrites a note that's already open, not only when you open it, so its comments don't break in Reading view and PDF export.
+- Fixed more comments written by other tools showing as note text in Reading view and PDF: a comment block that starts on a line beginning with a comment (e.g. a comment on a paragraph's first words) is moved to its own line after the paragraph, where the plugin puts the comments it writes. These fixes now also run when another tool rewrites a note that's already open, not only when you open it.
 
 ## 0.3.1
 
