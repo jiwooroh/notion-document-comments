@@ -272,13 +272,16 @@ class MarginView implements PluginValue {
 		const foldContaining = (pos: number) => folds.find((f) => pos >= f.from && pos < f.to);
 		const foldGroups = new Map<number, { fold: { from: number; to: number }; ids: string[] }>();
 
-		const doc = this.view.state.doc.toString();
+		// Only a code comment needs the text (to find its target lines); copying
+		// the whole note on every keystroke is wasted work otherwise.
+		let docText: string | null = null;
+		const doc = () => (docText ??= this.view.state.doc.toString());
 		const anchored: Array<{ card: Card; mid: number; comment: ParsedComment }> = [];
 		for (const c of this.comments()) {
 			const card = this.cards.get(c.id);
 			if (!card) continue;
 			// A code comment's card aligns to its target line, not the block top.
-			const range = isCodeComment(c) ? resolveCodeAnchor(doc, c) : anchorRange(c);
+			const range = isCodeComment(c) ? resolveCodeAnchor(doc(), c) : anchorRange(c);
 			if (!range) {
 				card.el.addClass("dc-offscreen"); // orphaned (e.g. the commented code changed)
 				continue;

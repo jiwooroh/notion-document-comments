@@ -5,6 +5,10 @@ matching the pushed tag as that GitHub release's notes, so add an entry here bef
 
 ## Unreleased
 
+- **Suggestions on/off:** a new **Suggestions** setting turns the suggestion features off. While it's off, Suggesting mode is unavailable (typing always edits directly), and its status bar item, ribbon button, and commands are hidden. Suggestions already in your notes still show and can be accepted or rejected from their cards.
+- Fixed **Editing mode** in settings not saving the mode you picked (the status bar, ribbon button, and command worked).
+- Typing in notes with many comments or suggestions does a little less work per keystroke.
+
 ## 0.3.2
 
 - Fixed more comments written by other tools showing as note text in Reading view and PDF: a comment block that starts on a line beginning with a comment (e.g. a comment on a paragraph's first words) is moved to its own line after the paragraph, where the plugin puts the comments it writes. These fixes now also run when another tool rewrites a note that's already open, not only when you open it.
